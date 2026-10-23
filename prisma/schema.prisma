@@ -1,7 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// BookLeaf Author Support Portal — database schema.
+// Supabase Postgres is used purely as a database; all access goes through Prisma.
+// Connection URLs live in prisma.config.ts (CLI) and src/server/db.ts (runtime).
 
 generator client {
   provider = "prisma-client"
@@ -10,4 +9,221 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  AUTHOR
+  ADMIN
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketCategory {
+  ROYALTY_PAYMENTS
+  ISBN_METADATA
+  PRINTING_QUALITY
+  DISTRIBUTION_AVAILABILITY
+  BOOK_STATUS_PRODUCTION
+  GENERAL_INQUIRY
+}
+
+enum TicketPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+/// Who set a ticket's category/priority: the LLM, the keyword fallback, or an admin override.
+enum TriageSource {
+  AI
+  FALLBACK
+  MANUAL
+}
+
+enum AiPurpose {
+  CLASSIFY
+  DRAFT
+}
+
+// ─── Identity ─────────────────────────────────────────────────────────────────
+
+/// A login. Authors link 1:1 to an Author profile; admins have no authorId.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role
+  authorId     String?  @unique
+  /// Random, unguessable channel name for this user's realtime invalidation pings.
+  realtimeKey  String   @unique @default(uuid())
+  createdAt    DateTime @default(now())
+
+  author          Author?         @relation(fields: [authorId], references: [id])
+  assignedTickets Ticket[]        @relation("TicketAssignee")
+  messages        TicketMessage[]
+  notes           InternalNote[]
+
+  @@map("users")
+}
+
+// ─── Catalogue (seeded from the provided dataset) ─────────────────────────────
+
+model Author {
+  id         String   @id // e.g. "AUTH001" — kept from the source dataset
+  name       String
+  email      String   @unique
+  phone      String
+  city       String
+  joinedDate DateTime @db.Date
+
+  user    User?
+  books   Book[]
+  tickets Ticket[]
+
+  @@map("authors")
+}
+
+/// Money columns are whole rupees (the source data has no paise).
+/// Nullable columns are null for books still in production.
+model Book {
+  id              String    @id // e.g. "BK001"
+  authorId        String
+  title           String
+  isbn            String
+  genre           String
+  publicationDate DateTime? @db.Date
+  /// Free text from the source system, e.g. "Published & Live", "In Production - Cover Design".
+  status          String
+  mrp             Int?
+  royaltyPerCopy  Int?
+  copiesSold      Int       @default(0)
+  royaltyEarned   Int       @default(0)
+  royaltyPaid     Int       @default(0)
+  royaltyPending  Int       @default(0)
+  lastPayoutDate  DateTime? @db.Date
+  printPartner    String?
+  availableOn     String[]
+
+  author  Author   @relation(fields: [authorId], references: [id])
+  tickets Ticket[]
+
+  @@index([authorId])
+  @@map("books")
+}
+
+// ─── Support ──────────────────────────────────────────────────────────────────
+
+model Ticket {
+  id             String          @id @default(cuid())
+  authorId       String
+  /// Null = "General / Account Level" query.
+  bookId         String?
+  subject        String
+  description    String
+  status         TicketStatus    @default(OPEN)
+  /// Null until triaged (AI runs asynchronously after creation).
+  category       TicketCategory?
+  categorySource TriageSource?
+  priority       TicketPriority?
+  prioritySource TriageSource?
+  /// 0 = Critical … 3 = Low. Untriaged tickets rank as High (1) so they are never buried.
+  priorityRank   Int             @default(1)
+  aiConfidence   Float?
+  aiReasoning    String?
+  assigneeId     String?
+  /// Attachment support is UI-only for now: only the filename is stored.
+  attachmentName String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  resolvedAt     DateTime?
+
+  author   Author          @relation(fields: [authorId], references: [id])
+  book     Book?           @relation(fields: [bookId], references: [id])
+  assignee User?           @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  messages TicketMessage[]
+  notes    InternalNote[]
+  aiDraft  AiDraft?
+  aiCalls  AiCall[]
+
+  @@index([status, priorityRank, createdAt])
+  @@index([authorId, createdAt])
+  @@map("tickets")
+}
+
+/// Public conversation on a ticket — visible to the author.
+model TicketMessage {
+  id          String   @id @default(cuid())
+  ticketId    String
+  senderId    String
+  senderRole  Role
+  body        String
+  /// True when an admin sent a reply that started from the AI draft.
+  usedAiDraft Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User   @relation(fields: [senderId], references: [id])
+
+  @@index([ticketId, createdAt])
+  @@map("ticket_messages")
+}
+
+/// Admin-only notes. A separate table (not a flag on messages) so they can never
+/// leak into an author-facing query by accident.
+model InternalNote {
+  id        String   @id @default(cuid())
+  ticketId  String
+  adminId   String
+  body      String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  admin  User   @relation(fields: [adminId], references: [id])
+
+  @@index([ticketId, createdAt])
+  @@map("internal_notes")
+}
+
+// ─── AI ───────────────────────────────────────────────────────────────────────
+
+/// Cached AI draft reply — one per ticket, regenerated only when the thread changes.
+model AiDraft {
+  ticketId            String   @id
+  body                String
+  model               String
+  /// Number of thread messages the draft was based on; a mismatch means it is stale.
+  basedOnMessageCount Int
+  createdAt           DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@map("ai_drafts")
+}
+
+/// One row per LLM request — evidence for cost/latency/failure monitoring.
+model AiCall {
+  id           String    @id @default(cuid())
+  ticketId     String?
+  purpose      AiPurpose
+  model        String
+  inputTokens  Int       @default(0)
+  outputTokens Int       @default(0)
+  latencyMs    Int
+  ok           Boolean
+  errorCode    String?
+  createdAt    DateTime  @default(now())
+
+  ticket Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("ai_calls")
 }
