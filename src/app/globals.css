@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * BookLeaf design tokens.
+ * Palette is drawn from bookmaking: proof paper, ink, bookcloth, and the proofreader's red pen.
+ * Rule: proof red is reserved for things that need attention (critical/overdue) — never decoration.
+ */
+@theme {
+  --color-paper: #f4f6f2;
+  --color-surface: #ffffff;
+  --color-ink: #17201c;
+  --color-ink-soft: #4a5550;
+  --color-ink-faint: #737e79;
+  --color-rule: #d8ded8;
+  --color-rule-strong: #b9c2bb;
+
+  --color-cloth: #2c3e8f;
+  --color-cloth-deep: #1f2d6b;
+  --color-cloth-soft: #e7eaf6;
+
+  --color-proof: #c23b22;
+  --color-proof-soft: #fbe9e5;
+
+  --color-leaf: #2f7a4f;
+  --color-leaf-soft: #e2f1e7;
+
+  --color-amber: #9a6208;
+  --color-amber-soft: #fbf0d9;
+
+  --font-sans: var(--font-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-literata), Georgia, "Times New Roman", serif;
+
+  --radius-sm: 3px;
+  --radius-md: 5px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01";
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-cloth);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: var(--color-cloth-soft);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Money and counts line up in tables and ledgers. */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
