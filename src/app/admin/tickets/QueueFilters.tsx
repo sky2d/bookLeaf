@@ -141,17 +141,17 @@ export function QueueFilters() {
       </div>
 
       {/* Filter Selects Row */}
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6 min-w-0">
         {/* Status */}
-        <div>
-          <label htmlFor="filter-status" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase">
+        <div className="min-w-0">
+          <label htmlFor="filter-status" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase truncate">
             Status
           </label>
           <select
             id="filter-status"
             value={currentStatus}
             onChange={(e) => updateParams({ status: e.target.value })}
-            className="mt-1 w-full rounded-md border border-rule bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-cloth focus:outline-hidden"
+            className="mt-1 w-full rounded-md border border-rule bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-cloth focus:outline-hidden truncate"
           >
             <option value="UNRESOLVED">Active / Unresolved</option>
             <option value="OPEN">Open</option>
@@ -163,15 +163,15 @@ export function QueueFilters() {
         </div>
 
         {/* Priority */}
-        <div>
-          <label htmlFor="filter-priority" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase">
+        <div className="min-w-0">
+          <label htmlFor="filter-priority" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase truncate">
             Priority
           </label>
           <select
             id="filter-priority"
             value={currentPriority}
             onChange={(e) => updateParams({ priority: e.target.value })}
-            className="mt-1 w-full rounded-md border border-rule bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-cloth focus:outline-hidden"
+            className="mt-1 w-full rounded-md border border-rule bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-cloth focus:outline-hidden truncate"
           >
             <option value="">All Priorities</option>
             <option value="CRITICAL">Critical</option>
@@ -182,15 +182,15 @@ export function QueueFilters() {
         </div>
 
         {/* Category */}
-        <div>
-          <label htmlFor="filter-category" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase">
+        <div className="min-w-0">
+          <label htmlFor="filter-category" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase truncate">
             Category
           </label>
           <select
             id="filter-category"
             value={currentCategory}
             onChange={(e) => updateParams({ category: e.target.value })}
-            className="mt-1 w-full rounded-md border border-rule bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-cloth focus:outline-hidden"
+            className="mt-1 w-full rounded-md border border-rule bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-cloth focus:outline-hidden truncate"
           >
             <option value="">All Categories</option>
             {CATEGORIES.map((cat) => (
@@ -202,15 +202,15 @@ export function QueueFilters() {
         </div>
 
         {/* Assignee */}
-        <div>
-          <label htmlFor="filter-assignee" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase">
+        <div className="min-w-0">
+          <label htmlFor="filter-assignee" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase truncate">
             Assignee
           </label>
           <select
             id="filter-assignee"
             value={currentAssignee}
             onChange={(e) => updateParams({ assignee: e.target.value })}
-            className="mt-1 w-full rounded-md border border-rule bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-cloth focus:outline-hidden"
+            className="mt-1 w-full rounded-md border border-rule bg-surface px-2.5 py-1.5 text-xs text-ink focus:border-cloth focus:outline-hidden truncate"
           >
             <option value="">All Assignees</option>
             <option value="me">Assigned to me</option>
@@ -219,8 +219,8 @@ export function QueueFilters() {
         </div>
 
         {/* From Date */}
-        <div>
-          <label htmlFor="filter-from" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase">
+        <div className="min-w-0">
+          <label htmlFor="filter-from" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase truncate">
             From
           </label>
           <input
@@ -228,13 +228,14 @@ export function QueueFilters() {
             type="date"
             value={currentFrom}
             onChange={(e) => updateParams({ from: e.target.value })}
-            className="mt-1 w-full rounded-md border border-rule bg-surface px-2 py-1 text-xs text-ink focus:border-cloth focus:outline-hidden"
-          />
+            className="mt-1 w-full rounded-md border border-rule bg-surface px-2 py-1.5 text-xs text-ink focus:border-cloth focus:outline-hidden"
+          >
+          </input>
         </div>
 
         {/* To Date */}
-        <div>
-          <label htmlFor="filter-to" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase">
+        <div className="min-w-0">
+          <label htmlFor="filter-to" className="block text-[11px] font-medium tracking-wider text-ink-soft uppercase truncate">
             To
           </label>
           <input
@@ -242,8 +243,9 @@ export function QueueFilters() {
             type="date"
             value={currentTo}
             onChange={(e) => updateParams({ to: e.target.value })}
-            className="mt-1 w-full rounded-md border border-rule bg-surface px-2 py-1 text-xs text-ink focus:border-cloth focus:outline-hidden"
-          />
+            className="mt-1 w-full rounded-md border border-rule bg-surface px-2 py-1.5 text-xs text-ink focus:border-cloth focus:outline-hidden"
+          >
+          </input>
         </div>
       </div>
 
