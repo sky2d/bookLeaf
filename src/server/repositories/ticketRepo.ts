@@ -1,6 +1,8 @@
 import "server-only";
+import type { Prisma } from "@/generated/prisma/client";
 import type { Role } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
+import type { TicketQueryInput } from "@/shared/schemas/ticketQuery";
 
 export type CreateTicketData = {
   authorId: string;
@@ -135,5 +137,92 @@ export const ticketRepo = {
 
       return message;
     });
+  },
+
+  buildWhereClause(query: TicketQueryInput, currentUserId?: string): Prisma.TicketWhereInput {
+    const where: Prisma.TicketWhereInput = {};
+
+    if (query.status === "UNRESOLVED") {
+      where.status = { in: ["OPEN", "IN_PROGRESS"] };
+    } else if (query.status && query.status !== "ALL") {
+      where.status = query.status;
+    }
+
+    if (query.category) {
+      where.category = query.category;
+    }
+
+    if (query.priority) {
+      where.priority = query.priority;
+    }
+
+    if (query.assignee === "me") {
+      if (currentUserId) {
+        where.assigneeId = currentUserId;
+      }
+    } else if (query.assignee === "unassigned") {
+      where.assigneeId = null;
+    } else if (query.assignee) {
+      where.assigneeId = query.assignee;
+    }
+
+    if (query.from || query.to) {
+      where.createdAt = {};
+      if (query.from) {
+        where.createdAt.gte = new Date(`${query.from}T00:00:00.000Z`);
+      }
+      if (query.to) {
+        where.createdAt.lte = new Date(`${query.to}T23:59:59.999Z`);
+      }
+    }
+
+    if (query.q && query.q.trim()) {
+      const term = query.q.trim();
+      where.OR = [
+        { subject: { contains: term, mode: "insensitive" } },
+        { description: { contains: term, mode: "insensitive" } },
+        { author: { is: { name: { contains: term, mode: "insensitive" } } } },
+        { author: { is: { email: { contains: term, mode: "insensitive" } } } },
+        { book: { is: { title: { contains: term, mode: "insensitive" } } } },
+      ];
+    }
+
+    return where;
+  },
+
+  async findQueue(options: { where?: Prisma.TicketWhereInput; skip?: number; take?: number } = {}) {
+    const { where, skip = 0, take = 20 } = options;
+    const [tickets, total] = await db.$transaction([
+      db.ticket.findMany({
+        where,
+        skip,
+        take,
+        orderBy: [{ priorityRank: "asc" }, { createdAt: "asc" }],
+        include: {
+          author: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          book: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          assignee: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      }),
+      db.ticket.count({ where }),
+    ]);
+
+    return { tickets, total };
   },
 };

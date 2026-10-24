@@ -1,4 +1,4 @@
-import type { TicketStatus } from "@/generated/prisma/enums";
+import type { TicketCategory, TicketPriority, TicketStatus, TriageSource } from "@/generated/prisma/enums";
 
 // Response shapes returned by the REST API. Shared by route handlers and the client.
 // Dates are ISO strings (calendar dates as YYYY-MM-DD).
@@ -81,4 +81,42 @@ export type AuthorTicketResponse = {
 
 export type CreateMessageResponse = {
   message: TicketMessageDto;
+};
+
+export type AdminTicketDto = {
+  id: string;
+  subject: string;
+  status: TicketStatus;
+  category: TicketCategory | null;
+  categorySource: TriageSource | null;
+  priority: TicketPriority | null;
+  prioritySource: TriageSource | null;
+  priorityRank: number;
+  aiConfidence: number | null;
+  aiReasoning: string | null;
+  createdAt: string;
+  updatedAt: string;
+  author: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  book: {
+    id: string;
+    title: string;
+  } | null;
+  assignee: {
+    id: string;
+    name: string;
+  } | null;
+};
+
+export type AdminTicketQueueResponse = {
+  tickets: AdminTicketDto[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 };
