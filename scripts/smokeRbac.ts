@@ -116,6 +116,10 @@ const CASES: Case[] = [
   { as: "admin", path: "/api/tickets", status: 403, expect: errorCode("FORBIDDEN") },
   { as: "priya", path: "/api/tickets", status: 200 },
   { as: "sneha", path: "/api/tickets", status: 200 },
+  // Admin Ticket Queue (Task 7):
+  { as: "anonymous", path: "/api/admin/tickets", status: 401, expect: errorCode("UNAUTHORIZED") },
+  { as: "priya", path: "/api/admin/tickets", status: 403, expect: errorCode("FORBIDDEN") },
+  { as: "admin", path: "/api/admin/tickets", status: 200 },
 ];
 
 /** Minimal cookie jar: keeps name=value pairs from Set-Cookie headers. */

@@ -18,9 +18,10 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 | 6a | Ticket detail thread + author follow-up | ✅ Done (`9408fd8`) |
 | 6b | Ticket list | ✅ Done on `feat/ticket-list`. 74 tests pass, 22/22 smoke pass |
 | CP2 | Author flow | ✅ Complete locally |
-| 7–15 | Admin, realtime, AI, docs | ⬜ Not started (`@google/genai` is installed, but there's no `src/server/ai/` yet) |
+| 7 | Admin ticket queue with filters and urgency sorting | ✅ Done on `feat/admin-queue`. 95 tests pass, 25/25 smoke pass |
+| 8–15 | Admin detail, realtime, AI, docs | ⬜ Not started (`@google/genai` is installed, but there's no `src/server/ai/` yet) |
 
-Evidence: `npm test` 74/74 pass (9 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 22/22 pass · live: `GET /api/health` → 200, `/api/me`, `/api/me/books`, `/api/tickets` without a session → 401 JSON, `/author/books` → 307 `/login?next=…` · secret scan of git history: 0 hits.
+Evidence: `npm test` 95/95 pass (12 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 25/25 pass · live: `GET /api/health` → 200, `/api/me`, `/api/me/books`, `/api/tickets` without a session → 401 JSON, `/author/books` → 307 `/login?next=…`, `/api/admin/tickets` author → 403 / admin → 200 · secret scan of git history: 0 hits.
 
 Empty in `.env`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS probe, Realtime), `SUPABASE_SERVICE_ROLE_KEY` (Task 9), `GEMINI_API_KEY` (Task 10+).
 
@@ -379,19 +380,21 @@ body  { bookId: string | null, subject: string, description: string, attachmentN
 
 **Description:** `GET /api/admin/tickets` with zod-validated query params `status, category, priority, from, to, assignee (me|unassigned|id), q, page, pageSize`. The default view is unresolved tickets sorted by priority rank (Critical→Low; unclassified ranked as High until triaged), then oldest first. Order by a `priorityRank` Int column kept in sync by the service. UI: a filter bar (state in URL search params), a coloured priority badge, an age column (red past 48h), category or a "Needs triage" marker, assignee, author, book.
 
+**Status:** ✅ Done on branch `feat/admin-queue`. Verified: 95 tests pass, lint clean, typecheck clean, 25/25 smoke checks pass.
+
 **Acceptance criteria:**
-- [ ] Filters combine with AND. An invalid enum/date → 400
-- [ ] Default: open/in-progress tickets, most urgent then oldest at the top. Resolved/closed tickets only appear when filtered for
-- [ ] Filters survive a refresh and can be shared via the URL
+- [x] Filters combine with AND. An invalid enum/date → 400
+- [x] Default: open/in-progress tickets, most urgent then oldest at the top. Resolved/closed tickets only appear when filtered for
+- [x] Filters survive a refresh and can be shared via the URL
 
 **Verification:**
-- [ ] Tests pass: query schema. `buildTicketWhere/orderBy` unit tests
-- [ ] Build succeeds
-- [ ] `smoke:rbac` gets a new row: author → `GET /api/admin/tickets` → 403
-- [ ] Manual check: tickets from 2 authors, try each filter
+- [x] Tests pass: query schema. `buildTicketWhere/orderBy` unit tests
+- [x] Build succeeds
+- [x] `smoke:rbac` gets a new row: author → `GET /api/admin/tickets` → 403
+- [x] Manual check: tickets from 2 authors, try each filter
 
 **Dependencies:** Task 6b
-**Files likely touched:** `src/app/api/admin/tickets/route.ts`, `src/shared/schemas/ticketQuery.ts`, `src/server/repositories/ticketRepo.ts`, `src/app/admin/tickets/page.tsx`, `src/components/PriorityBadge.tsx`
+**Files touched:** `src/app/api/admin/tickets/route.ts`, `src/shared/schemas/ticketQuery.ts`, `src/shared/schemas/ticketQuery.test.ts`, `src/server/repositories/ticketRepo.ts`, `src/server/repositories/ticketRepo.test.ts`, `src/server/services/adminTicketService.ts`, `src/server/services/adminTicketService.test.ts`, `src/app/admin/tickets/page.tsx`, `src/app/admin/tickets/QueueFilters.tsx`, `src/app/admin/tickets/AdminTicketQueue.tsx`, `src/components/PriorityBadge.tsx`
 **Estimated scope:** Medium
 
 ---
