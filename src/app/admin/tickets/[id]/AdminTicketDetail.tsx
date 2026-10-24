@@ -164,6 +164,7 @@ export function AdminTicketDetail({ ticketId }: { ticketId: string }) {
             currentAdminId={currentAdminId}
             onUpdate={handleUpdate}
             isUpdating={isUpdating}
+            onRefresh={refetch}
           />
           <AuthorContextSidebar ticket={ticket} />
         </div>

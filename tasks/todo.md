@@ -21,19 +21,20 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 | 8 | Admin ticket detail: status, assign-to-me, internal notes, manual reply | ✅ Done (merged into `main`) |
 | 9 | Real-time updates via Supabase Realtime Broadcast | ✅ Done on `feat/realtime-broadcast`. 123 tests pass, 31/31 smoke pass |
 | CP3 | Manual ticket lifecycle + Realtime | ✅ Verified live in browser (two side-by-side windows) |
-| 10–15 | AI foundation, triage, drafts, eval, docs | ⬜ Next up (`@google/genai` is installed) |
+| 10 | AI module foundation (`src/server/ai/`) | ✅ Done on `feat/ai-foundation` (`2e20c28`). 154 tests pass, live `ai:ping` ok |
+| 11 | Auto-classification + priority with fallback & admin override | ✅ Done on `feat/ai-triage`. 170 tests pass, 34/34 smoke pass |
+| 12 | AI-drafted responses with targeted context, caching, edit & send | ⬜ **Next up** |
+| 13 | Prompt evaluation + tuning | ⬜ Upcoming |
+| CP4 | AI complete checkpoint | ⬜ Upcoming |
 
-Evidence: `npm test` 123/123 pass (15 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 31/31 pass · live: `GET /api/health` → 200, `/api/me`, `/api/me/books`, `/api/tickets` without a session → 401 JSON, `/author/books` → 307 `/login?next=…`, `/api/admin/tickets` & `/api/admin/tickets/:id/*` author → 403 / admin → 200/201 · secret scan of git history: 0 hits.
+Evidence: `npm test` 170/170 pass (22 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 34/34 pass · live Gemini triage: 0.95 confidence, `ROYALTY_PAYMENTS` / `HIGH` with exact reasoning logged to `ai_calls` · secret scan of client bundles (`.next/static`): 0 hits.
 
-Configured in `.env`: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_REALTIME_KEY`.
-Remaining for Phase 4: `GEMINI_API_KEY` (Task 10+).
+Configured in `.env`: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_REALTIME_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL="gemini-3.5-flash"`.
 
 **Next, in order**:
-1. Merge `feat/realtime-broadcast` PR to `main`
-2. **Phase 4: Task 10** — AI module foundation (`src/server/ai/` client, structured KB, facts, usage logging)
-3. **Task 11** — Auto-classification + priority with fallback & admin override
-4. **Task 12** — AI-drafted responses with targeted context, caching, edit & send
-5. **Task 13** — Prompt evaluation + tuning
+1. **Phase 4: Task 12** — AI-drafted responses with targeted context, caching, edit & send (`src/server/ai/drafter.ts`, `contextBuilder.ts`, `GET /api/admin/tickets/:id/draft`, UI reply box prefill & regenerate)
+2. **Task 13** — Prompt evaluation + tuning
+3. **Checkpoint 4** — AI complete checkpoint
 
 ---
 
@@ -494,18 +495,20 @@ UI: two columns (thread + reply box | context + controls), "Assign to me", and a
 
 **Description:** `ai/classifier.ts` makes one Gemini call with `responseMimeType: 'application/json'` + a `responseSchema` (category enum ×6, priority enum ×4, confidence, reasoning ≤1 sentence), `temperature: 0`, and small `maxOutputTokens`. The prompt has category definitions, a priority rubric with examples, and the book's status/pending facts. It does **not** include KB policy text. The result is validated with zod. On any failure, `heuristicClassifier.ts` (keyword rules) sets `source = FALLBACK`. `onTicketCreated` runs this in `after()`, then updates the ticket and broadcasts. Add `POST /api/admin/tickets/:id/classify` to re-run it. UI: an AI/Fallback/Manual source chip, a reasoning tooltip, and override dropdowns (PATCH from Task 8).
 
+**Status:** ✅ Done on branch `feat/ai-triage`. Verified: 170 unit tests pass, 34/34 RBAC smoke checks pass, typecheck clean, lint clean, live non-blocking background triage tested against Gemini 3.5 Flash returning 0.95 confidence and logging to `ai_calls` table.
+
 **Acceptance criteria:**
-- [ ] The 201 doesn't wait for Gemini. The queue fills in triage live a moment later
-- [ ] "No royalty for 6 months" → Royalty & Payments, High/Critical. "Update my author bio?" → General Inquiry, Low. An ISBN mismatch → ISBN & Metadata, High
-- [ ] With the key unset or `AI_FORCE_FAIL=true`: FALLBACK triage is applied and no errors reach the user
+- [x] The 201 doesn't wait for Gemini. The queue fills in triage live a moment later
+- [x] "No royalty for 6 months" → Royalty & Payments, High/Critical. "Update my author bio?" → General Inquiry, Low. An ISBN mismatch → ISBN & Metadata, High
+- [x] With the key unset or `AI_FORCE_FAIL=true`: FALLBACK triage is applied and no errors reach the user
 
 **Verification:**
-- [ ] Tests pass: classifier with a mocked SDK (valid / malformed → fallback / error → fallback). Heuristic tests
-- [ ] Build succeeds
-- [ ] Manual check: real-key tickets show up in the queue. Repeat with `AI_FORCE_FAIL=true`
+- [x] Tests pass: classifier with a mocked SDK (valid / malformed → fallback / error → fallback). Heuristic tests
+- [x] Build succeeds
+- [x] Manual check: real-key tickets show up in the queue. Repeat with `AI_FORCE_FAIL=true`
 
 **Dependencies:** Tasks 9, 10
-**Files likely touched:** `src/server/ai/{classifier,heuristicClassifier,prompts/classify}.ts`, `src/server/services/ticketService.ts`, `src/app/api/admin/tickets/[id]/classify/route.ts`, `src/components/{TriageControls,SourceChip}.tsx`
+**Files touched:** `src/server/ai/{classifier,heuristicClassifier,prompts/classify}.ts`, `src/server/services/triageService.ts`, `src/app/api/tickets/route.ts`, `src/app/api/admin/tickets/[id]/classify/route.ts`, `src/components/SourceChip.tsx`, `src/app/admin/tickets/AdminTicketQueue.tsx`, `src/app/admin/tickets/[id]/TicketControls.tsx`, `scripts/smokeRbac.ts`
 **Estimated scope:** Medium
 
 ---

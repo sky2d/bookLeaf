@@ -148,6 +148,28 @@ const CASES: Case[] = [
     expect: errorCode("FORBIDDEN"),
   },
   { as: "admin", path: "/api/admin/tickets/nonexistent-id", status: 404, expect: errorCode("NOT_FOUND") },
+  // Admin Ticket Re-classify (Task 11):
+  {
+    as: "anonymous",
+    method: "POST",
+    path: "/api/admin/tickets/nonexistent-id/classify",
+    status: 401,
+    expect: errorCode("UNAUTHORIZED"),
+  },
+  {
+    as: "priya",
+    method: "POST",
+    path: "/api/admin/tickets/nonexistent-id/classify",
+    status: 403,
+    expect: errorCode("FORBIDDEN"),
+  },
+  {
+    as: "admin",
+    method: "POST",
+    path: "/api/admin/tickets/nonexistent-id/classify",
+    status: 404,
+    expect: errorCode("NOT_FOUND"),
+  },
 ];
 
 /** Minimal cookie jar: keeps name=value pairs from Set-Cookie headers. */

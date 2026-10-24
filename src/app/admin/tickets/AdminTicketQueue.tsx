@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PriorityBadge } from "@/components/PriorityBadge";
+import { SourceChip } from "@/components/SourceChip";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatAge } from "@/lib/format";
 import type { AdminTicketQueueResponse } from "@/shared/dto";
@@ -148,14 +149,6 @@ export function AdminTicketQueue() {
                               </span>
                             </span>
                           )}
-                          {t.categorySource === "AI" && (
-                            <span
-                              className="inline-flex items-center gap-1 rounded-sm bg-paper px-1.5 py-0.5 text-[10px] text-ink-faint"
-                              title={`AI Classified (confidence ${(t.aiConfidence ?? 0) * 100}%)`}
-                            >
-                              <span>✨ AI triaged</span>
-                            </span>
-                          )}
                         </div>
                       </td>
 
@@ -165,12 +158,19 @@ export function AdminTicketQueue() {
                         <div className="text-xs text-ink-faint">{t.author.email}</div>
                       </td>
 
-                      {/* Category */}
+                      {/* Category & Triage Source */}
                       <td className="hidden px-4 py-3 text-xs md:table-cell">
                         {t.category ? (
-                          <span className="rounded-md bg-paper px-2 py-0.5 text-ink-soft">
-                            {CATEGORY_LABELS[t.category] ?? t.category}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="rounded-md bg-paper px-2 py-0.5 text-ink-soft">
+                              {CATEGORY_LABELS[t.category] ?? t.category}
+                            </span>
+                            <SourceChip
+                              source={t.categorySource}
+                              confidence={t.aiConfidence}
+                              reasoning={t.aiReasoning}
+                            />
+                          </div>
                         ) : (
                           <span className="italic text-ink-faint">Needs triage</span>
                         )}

@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import type { TicketCategory, TicketPriority, TicketStatus } from "@/generated/prisma/enums";
+import { SourceChip } from "@/components/SourceChip";
 import type { AdminTicketDetailDto } from "@/shared/dto";
 import type { UpdateTicketInput } from "@/shared/schemas/adminTicket";
 
@@ -32,17 +34,61 @@ export function TicketControls({
   currentAdminId,
   onUpdate,
   isUpdating,
+  onRefresh,
 }: {
   ticket: AdminTicketDetailDto;
   currentAdminId?: string;
   onUpdate: (input: UpdateTicketInput) => Promise<void>;
   isUpdating: boolean;
+  onRefresh?: () => Promise<unknown> | unknown;
 }) {
   const isAssignedToMe = Boolean(currentAdminId && ticket.assignee?.id === currentAdminId);
+  const [isRetriaging, setIsRetriaging] = useState(false);
+  const [retriageMessage, setRetriageMessage] = useState<string | null>(null);
+
+  async function handleRetriage() {
+    setIsRetriaging(true);
+    setRetriageMessage(null);
+    try {
+      const res = await fetch(`/api/admin/tickets/${ticket.id}/classify`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.error?.message ?? "Failed to re-triage ticket.");
+      }
+      setRetriageMessage("Triage updated!");
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (err) {
+      setRetriageMessage(err instanceof Error ? err.message : "Re-triage failed.");
+    } finally {
+      setIsRetriaging(false);
+    }
+  }
 
   return (
     <div className="rounded-lg border border-rule bg-surface p-5 shadow-xs space-y-5">
-      <h3 className="font-serif text-base font-semibold text-ink">Ticket Controls</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-serif text-base font-semibold text-ink">Ticket Controls</h3>
+        <button
+          type="button"
+          disabled={isRetriaging || isUpdating}
+          onClick={handleRetriage}
+          className="inline-flex items-center gap-1 rounded-md border border-rule bg-paper/60 px-2.5 py-1 text-xs font-medium text-ink-soft transition-colors hover:bg-paper hover:text-ink disabled:opacity-50"
+          title="Re-run AI auto-classification and priority triage"
+        >
+          <span>{isRetriaging ? "⏳" : "✨"}</span>
+          <span>{isRetriaging ? "Triaging..." : "Re-triage"}</span>
+        </button>
+      </div>
+
+      {retriageMessage && (
+        <p className="text-[11px] text-cloth-deep font-medium bg-cloth-soft/40 px-2 py-1 rounded">
+          {retriageMessage}
+        </p>
+      )}
 
       {/* Status */}
       <div>
@@ -75,23 +121,11 @@ export function TicketControls({
           <label htmlFor="control-priority" className="block text-xs font-medium text-ink-soft">
             Urgency / Priority
           </label>
-          {ticket.prioritySource && (
-            <span
-              className={`rounded-sm px-1.5 py-0.5 text-[10px] font-medium ${
-                ticket.prioritySource === "AI"
-                  ? "bg-cloth-soft text-cloth"
-                  : ticket.prioritySource === "MANUAL"
-                    ? "bg-leaf-soft text-leaf"
-                    : "bg-paper text-ink-soft"
-              }`}
-            >
-              {ticket.prioritySource === "AI"
-                ? "✨ AI"
-                : ticket.prioritySource === "MANUAL"
-                  ? "👤 Manual"
-                  : "⚡ Fallback"}
-            </span>
-          )}
+          <SourceChip
+            source={ticket.prioritySource}
+            confidence={ticket.aiConfidence}
+            reasoning={ticket.aiReasoning}
+          />
         </div>
         <select
           id="control-priority"
@@ -107,11 +141,6 @@ export function TicketControls({
             </option>
           ))}
         </select>
-        {ticket.aiReasoning && (
-          <p className="mt-1 text-[11px] text-ink-faint italic" title="AI Triage Reasoning">
-            AI note: {ticket.aiReasoning}
-          </p>
-        )}
       </div>
 
       {/* Category & Source */}
@@ -120,23 +149,11 @@ export function TicketControls({
           <label htmlFor="control-category" className="block text-xs font-medium text-ink-soft">
             Inquiry Category
           </label>
-          {ticket.categorySource && (
-            <span
-              className={`rounded-sm px-1.5 py-0.5 text-[10px] font-medium ${
-                ticket.categorySource === "AI"
-                  ? "bg-cloth-soft text-cloth"
-                  : ticket.categorySource === "MANUAL"
-                    ? "bg-leaf-soft text-leaf"
-                    : "bg-paper text-ink-soft"
-              }`}
-            >
-              {ticket.categorySource === "AI"
-                ? "✨ AI"
-                : ticket.categorySource === "MANUAL"
-                  ? "👤 Manual"
-                  : "⚡ Fallback"}
-            </span>
-          )}
+          <SourceChip
+            source={ticket.categorySource}
+            confidence={ticket.aiConfidence}
+            reasoning={ticket.aiReasoning}
+          />
         </div>
         <select
           id="control-category"
@@ -153,6 +170,24 @@ export function TicketControls({
           ))}
         </select>
       </div>
+
+      {/* AI Reasoning Callout */}
+      {ticket.aiReasoning && (
+        <div className="rounded-md border border-rule/60 bg-paper/50 p-2.5 text-xs">
+          <div className="flex items-center gap-1 font-medium text-ink-soft text-[11px]">
+            <span>💡</span>
+            <span>Triage Reasoning</span>
+            {ticket.aiConfidence != null && (
+              <span className="ml-auto text-ink-faint text-[10px]">
+                {Math.round(ticket.aiConfidence * 100)}% confidence
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-soft">
+            {ticket.aiReasoning}
+          </p>
+        </div>
+      )}
 
       {/* Assignee & Quick Actions */}
       <div className="border-t border-rule/60 pt-4">
