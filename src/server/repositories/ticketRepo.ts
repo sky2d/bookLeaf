@@ -1,6 +1,6 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
-import type { Role, TicketCategory, TicketPriority, TicketStatus } from "@/generated/prisma/enums";
+import type { Role, TicketCategory, TicketPriority, TicketStatus, TriageSource } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
 import type { TicketQueryInput } from "@/shared/schemas/ticketQuery";
 
@@ -383,9 +383,25 @@ export const ticketRepo = {
       return note;
     });
   },
+
+  async updateTriage(id: string, data: UpdateTriageData) {
+    return db.ticket.update({
+      where: { id },
+      data: {
+        category: data.category,
+        categorySource: data.categorySource,
+        priority: data.priority,
+        prioritySource: data.prioritySource,
+        priorityRank: data.priorityRank,
+        aiConfidence: data.aiConfidence ?? null,
+        aiReasoning: data.aiReasoning ?? null,
+        updatedAt: new Date(),
+      },
+    });
+  },
 };
 
-const PRIORITY_RANKS: Record<TicketPriority, number> = {
+export const PRIORITY_RANKS: Record<TicketPriority, number> = {
   CRITICAL: 0,
   HIGH: 1,
   MEDIUM: 2,
@@ -397,4 +413,14 @@ export type UpdateAdminTicketData = {
   category?: TicketCategory;
   priority?: TicketPriority;
   assigneeId?: string | null;
+};
+
+export type UpdateTriageData = {
+  category: TicketCategory;
+  categorySource: TriageSource;
+  priority: TicketPriority;
+  prioritySource: TriageSource;
+  priorityRank: number;
+  aiConfidence?: number | null;
+  aiReasoning?: string | null;
 };
