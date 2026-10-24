@@ -21,6 +21,20 @@ describe("ticketRepo.findByIdForAuthor", () => {
   });
 });
 
+describe("ticketRepo.addMessageAndReopen", () => {
+  it("reopens without touching priorityRank, so the ticket keeps sorting by its real priority", async () => {
+    const update = vi.fn();
+    const tx = { ticketMessage: { create: vi.fn().mockResolvedValue({ id: "msg_1" }) }, ticket: { update } };
+    vi.mocked(db.$transaction).mockImplementationOnce(((fn: (t: unknown) => unknown) => fn(tx)) as never);
+
+    await ticketRepo.addMessageAndReopen("tkt_1", "usr_1", "AUTHOR", "Still broken.");
+
+    const { data } = update.mock.calls[0][0];
+    expect(data).toMatchObject({ status: "OPEN", resolvedAt: null });
+    expect(data).not.toHaveProperty("priorityRank");
+  });
+});
+
 describe("ticketRepo.buildWhereClause", () => {
   it("builds unresolved status filter by default", () => {
     const where = ticketRepo.buildWhereClause({
