@@ -136,15 +136,15 @@ Indexes: `Ticket(status, priority, createdAt)`, `Ticket(authorId, createdAt)`. M
 
 ### Phase 1: Foundation
 - [x] Task 1: Next.js scaffold + API error layer + health endpoint
-- [ ] Task 2: Prisma schema on Supabase + deny-all RLS + seed from the provided JSON *(code done; migrations not applied yet)*
-- [ ] Task 3: Login end-to-end (Auth.js credentials, proxy, withAuth roles, role routing) *(code done; live check pending)*
+- [x] Task 2: Prisma schema on Supabase + deny-all RLS + seed from the provided JSON
+- [x] Task 3: Login end-to-end (Auth.js credentials, proxy, withAuth roles, role routing)
 
 ### Phase 2: Author Portal
-- [ ] Task 4: My Books page (incl. in-production and zero-royalty edge cases) *(in progress, uncommitted)*
-- [ ] Task 4a: `smoke:rbac` script: the RBAC matrix over HTTP, extended by Tasks 5–8
-- [ ] Task 4b: First Vercel deploy (GitHub remote + env vars)
+- [x] Task 4: My Books page (incl. in-production and zero-royalty edge cases)
+- [x] Task 4a: (done)
+- [ ] Task 4b: Vercel deploy: ⏸ deferred, runs after Checkpoint 4 (before Phase 5)
 
-### Checkpoint 1: Foundation + My Books + early deploy (Vercel + Supabase)
+### Checkpoint 1: Foundation + My Books (local) ✅
 
 - [ ] Task 5: Submit a support ticket (no AI yet)
 - [ ] Task 6a: Ticket detail thread + author follow-up
@@ -179,7 +179,7 @@ Indexes: `Ticket(status, priority, createdAt)`, `Ticket(authorId, createdAt)`. M
 |---|---|---|
 | Supabase auto-REST exposing tables via the public anon key | High | Deny-all RLS migration (Task 2). Verified with a `curl` to `/rest/v1/tickets` using the anon key, which must return `[]`/401. |
 | Prisma + Vercel connection exhaustion | Med | Pooler URL (6543, `pgbouncer=true`, `connection_limit=1`) for runtime, `DIRECT_URL` for migrations, Prisma client singleton. |
-| Deployment surprises late (env vars, Auth.js `AUTH_SECRET`/`AUTH_URL`, cookies) | High | Deploy at Checkpoint 1. |
+| Deployment surprises late (env vars, Auth.js `AUTH_SECRET`/`AUTH_URL`, cookies) | High | The deploy is deferred by choice (2026-10-24). Keep `.env.example` in sync and the build green on every task. Deploy right after Checkpoint 4, leaving ~½ day before the deadline. |
 | `after()` cut off / function timeout on slow Gemini calls | Med | `maxDuration` on the AI routes, classifier timeout ~8s → fallback. Unclassified tickets show "Needs triage" with a Reclassify button. |
 | Gemini free-tier rate limits while evaluators test | High | Async classification + heuristic fallback + cached drafts keep calls low. The manual path is always available. Consider enabling billing before submission. |
 | Supabase free project **pauses after ~7 days of inactivity** | High | Keep it active until review (scheduled ping to `/api/health`). Noted in the README. |
