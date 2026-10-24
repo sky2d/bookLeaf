@@ -120,6 +120,34 @@ const CASES: Case[] = [
   { as: "anonymous", path: "/api/admin/tickets", status: 401, expect: errorCode("UNAUTHORIZED") },
   { as: "priya", path: "/api/admin/tickets", status: 403, expect: errorCode("FORBIDDEN") },
   { as: "admin", path: "/api/admin/tickets", status: 200 },
+  // Admin Ticket Detail & Actions (Task 8):
+  { as: "anonymous", path: "/api/admin/tickets/nonexistent-id", status: 401, expect: errorCode("UNAUTHORIZED") },
+  { as: "priya", path: "/api/admin/tickets/nonexistent-id", status: 403, expect: errorCode("FORBIDDEN") },
+  {
+    as: "priya",
+    method: "PATCH",
+    path: "/api/admin/tickets/nonexistent-id",
+    body: { status: "IN_PROGRESS" },
+    status: 403,
+    expect: errorCode("FORBIDDEN"),
+  },
+  {
+    as: "priya",
+    method: "POST",
+    path: "/api/admin/tickets/nonexistent-id/messages",
+    body: { body: "Admin reply attempt by author" },
+    status: 403,
+    expect: errorCode("FORBIDDEN"),
+  },
+  {
+    as: "priya",
+    method: "POST",
+    path: "/api/admin/tickets/nonexistent-id/notes",
+    body: { body: "Internal note attempt by author" },
+    status: 403,
+    expect: errorCode("FORBIDDEN"),
+  },
+  { as: "admin", path: "/api/admin/tickets/nonexistent-id", status: 404, expect: errorCode("NOT_FOUND") },
 ];
 
 /** Minimal cookie jar: keeps name=value pairs from Set-Cookie headers. */

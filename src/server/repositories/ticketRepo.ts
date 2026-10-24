@@ -1,6 +1,6 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
-import type { Role } from "@/generated/prisma/enums";
+import type { Role, TicketCategory, TicketPriority, TicketStatus } from "@/generated/prisma/enums";
 import { db } from "@/server/db";
 import type { TicketQueryInput } from "@/shared/schemas/ticketQuery";
 
@@ -225,4 +225,176 @@ export const ticketRepo = {
 
     return { tickets, total };
   },
+
+  findByIdForAdmin(id: string) {
+    return db.ticket.findUnique({
+      where: { id },
+      include: {
+        author: true,
+        book: true,
+        assignee: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        messages: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                role: true,
+              },
+            },
+          },
+        },
+        notes: {
+          orderBy: { createdAt: "asc" },
+          include: {
+            admin: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  },
+
+  getAuthorOtherBooks(authorId: string, excludeBookId?: string | null) {
+    return db.book.findMany({
+      where: {
+        authorId,
+        ...(excludeBookId ? { id: { not: excludeBookId } } : {}),
+      },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        copiesSold: true,
+        royaltyEarned: true,
+      },
+      orderBy: { copiesSold: "desc" },
+    });
+  },
+
+  async updateAdminTicket(id: string, data: UpdateAdminTicketData) {
+    const updateData: Prisma.TicketUncheckedUpdateInput = {
+      updatedAt: new Date(),
+    };
+
+    if (data.status !== undefined) {
+      updateData.status = data.status;
+      if (data.status === "RESOLVED") {
+        updateData.resolvedAt = new Date();
+      } else if (data.status === "OPEN" || data.status === "IN_PROGRESS") {
+        updateData.resolvedAt = null;
+      }
+    }
+
+    if (data.category !== undefined) {
+      updateData.category = data.category;
+      updateData.categorySource = "MANUAL";
+    }
+
+    if (data.priority !== undefined) {
+      updateData.priority = data.priority;
+      updateData.prioritySource = "MANUAL";
+      updateData.priorityRank = PRIORITY_RANKS[data.priority];
+    }
+
+    if (data.assigneeId !== undefined) {
+      updateData.assigneeId = data.assigneeId;
+    }
+
+    return db.ticket.update({
+      where: { id },
+      data: updateData,
+    });
+  },
+
+  async addAdminReply(ticketId: string, adminId: string, body: string) {
+    return db.$transaction(async (tx) => {
+      const message = await tx.ticketMessage.create({
+        data: {
+          ticketId,
+          senderId: adminId,
+          senderRole: "ADMIN",
+          body,
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      const ticket = await tx.ticket.findUnique({
+        where: { id: ticketId },
+        select: { status: true },
+      });
+
+      const nextStatus = ticket?.status === "OPEN" ? "IN_PROGRESS" : ticket?.status;
+
+      await tx.ticket.update({
+        where: { id: ticketId },
+        data: {
+          ...(nextStatus && nextStatus !== ticket?.status ? { status: nextStatus } : {}),
+          updatedAt: new Date(),
+        },
+      });
+
+      return message;
+    });
+  },
+
+  async addInternalNote(ticketId: string, adminId: string, body: string) {
+    return db.$transaction(async (tx) => {
+      const note = await tx.internalNote.create({
+        data: {
+          ticketId,
+          adminId,
+          body,
+        },
+        include: {
+          admin: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+      });
+
+      await tx.ticket.update({
+        where: { id: ticketId },
+        data: { updatedAt: new Date() },
+      });
+
+      return note;
+    });
+  },
+};
+
+const PRIORITY_RANKS: Record<TicketPriority, number> = {
+  CRITICAL: 0,
+  HIGH: 1,
+  MEDIUM: 2,
+  LOW: 3,
+};
+
+export type UpdateAdminTicketData = {
+  status?: TicketStatus;
+  category?: TicketCategory;
+  priority?: TicketPriority;
+  assigneeId?: string | null;
 };
