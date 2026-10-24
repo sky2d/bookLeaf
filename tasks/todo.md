@@ -12,9 +12,10 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 | 3 | Login end-to-end | ✅ Done. Verified live 2026-10-24 |
 | 4 | My Books page | ✅ Done on `feat/my-books` (waiting on the PR merge). A visual check in the browser is still open |
 | 4a | `smoke:rbac` script (new: Checkpoint 2 needed it, but no task created it) | ✅ Done on `feat/rbac-smoke` (waiting on the PR merge). 8/8 checks pass |
-| 4b | First Vercel deploy (new: Checkpoint 1 had no task with the steps) | ⬜ Not started. No git remote, no Vercel CLI |
-| CP1 | Foundation + My Books + early deploy (moved after 4b: Task 4 started before CP1) | 🟡 Tests, lint and build clean. Never deployed |
-| 5, 6a, 6b | Submit ticket, ticket detail, ticket list (Task 6 split in two: it was 7+ files) | ⬜ Not started |
+| 4b | Vercel deploy | ⏸ **Deferred** (your call, 2026-10-24): build everything locally first, deploy once before Task 15. Leave ~½ day for deploy issues |
+| CP1 | Foundation + My Books | ✅ Tests, lint, build and `smoke:rbac` clean locally (the deploy items move to before Task 15) |
+| 5 | Submit ticket | ✅ Done on `feat/submit-ticket`. 62 tests pass, 12/12 smoke pass |
+| 6a, 6b | Ticket detail, ticket list (Task 6 split in two: it was 7+ files) | ⬜ Not started |
 | 7–15 | Admin, realtime, AI, docs | ⬜ Not started (`@google/genai` is installed, but there's no `src/server/ai/` yet) |
 
 Evidence: `npm test` 41/41 pass (6 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` **2 errors** (`src/components/books/RoyaltySummary.tsx:42,54`, unescaped `'`) + 1 warning (`src/lib/apiClient.ts:32`) · `prisma migrate status`: 2 migrations not applied · live: `GET /api/health` → 200, `/api/me` and `/api/me/books` without a session → 401 JSON, `/author/books` → 307 `/login?next=…` · secret scan of git history: 0 hits.
@@ -26,8 +27,8 @@ Empty in `.env`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS probe, Realtime), `SUPABAS
 2. ~~**Task 3:** live login check~~ ✅
 3. ~~**Task 4:** fix lint, add the `bookService` test, commit~~ ✅ (open the page in a browser to check the visuals)
 4. ~~**Task 4a:** `smoke:rbac` v1~~ ✅
-5. **Task 4b:** GitHub remote + Vercel deploy, then **Checkpoint 1**
-6. **Task 5 → 6a → 6b**, then **Checkpoint 2**
+5. ~~**Task 4b:** deploy~~ ⏸ deferred to before Task 15
+6. **Task 5 → 6a → 6b**, then **Checkpoint 2** (all local)
 
 ---
 
@@ -182,7 +183,9 @@ Empty in `.env`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS probe, Realtime), `SUPABAS
 
 ---
 
-### Task 4b: First deploy to Vercel
+### Task 4b: Deploy to Vercel (⏸ deferred: run it before Task 15)
+
+**Status:** ⏸ Deferred 2026-10-24. Everything is developed and checked locally first. Meanwhile every task keeps `.env.example` in sync and the build green, so this stays a short task. Do it right after Checkpoint 4, before Task 14/15. The GitHub remote already exists.
 
 **Description:** Get the app live early so environment/cookie/pooler surprises surface now, not on day 4. Human steps first:
 1. Create a GitHub repo and push `main` (there's no remote yet)
@@ -209,15 +212,16 @@ Agent steps: document `AUTH_TRUST_HOST` (local `npm start` only) in `.env.exampl
 
 ### ✅ Checkpoint 1: Foundation + My Books + early deploy
 - [x] `npm test`, `npm run lint` and `npm run build` are clean
-- [ ] Deployed to Vercel with env vars set (`AUTH_SECRET`, pooler `DATABASE_URL`). Migrations + seed applied to Supabase
-- [ ] Both roles can log in **at the live URL**, and `smoke:rbac` passes against it
+- [x] Migrations + seed applied to Supabase
+- [x] Both roles can log in locally, and `smoke:rbac` passes (8/8)
+- ⏸ Deployed to Vercel + live login: deferred to Task 4b, before Task 15
 - [ ] Review with human before proceeding
 
 ---
 
 ### Task 5: Submit a support ticket (no AI yet)
 
-**Description:** `POST /api/tickets` (AUTHOR). Shared zod schema: `{ bookId: string | null, subject (5–150), description (20–5000), attachmentName?: string }`. The service checks the book belongs to the author and creates the ticket as OPEN with category/priority null. It also exposes an `onTicketCreated(ticket)` hook point (used by Tasks 9 and 11). Form: book dropdown (own books + "General / Account Level"), subject, description with a counter, attachment picker (UI only, filename kept), inline errors, redirect to the ticket on success.
+**Description:** `POST /api/tickets` (AUTHOR). Shared zod schema: `{ bookId: string | null, subject (5–150), description (20–5000), attachmentName?: string }`. The service checks the book belongs to the author and creates the ticket as OPEN with category/priority null. (Tasks 9 and 11 add their post-create work inside `ticketService.create`; no stub hook now.) Form: book dropdown (own books + "General / Account Level"), subject, description with a counter, attachment picker (UI only, filename kept), inline errors, redirect to the ticket on success.
 
 **Builds on what exists:**
 - Server: `bookRepo.findOwned(authorId, bookId)` (the ownership check), `parseBody`, `withAuth` + `requireAuthorId`
@@ -226,20 +230,90 @@ Agent steps: document `AUTH_TRUST_HOST` (local `npm start` only) in `.env.exampl
 - Pre-select the book from `?book=BK…`. `BookDetails`' "Ask about this book" link already sends it
 - The "My queries" nav link 404s until Task 6b. The success redirect 404s until 6a
 
+#### Implementation plan
+
+Branch `feat/submit-ticket`, built in **two increments**, each verified and committed on its own (`feat: …`). The API comes first, so the form is built against a contract that already works.
+
+**API contract**
+
+```
+POST /api/tickets                       AUTHOR only
+body  { bookId: string | null, subject: string, description: string, attachmentName?: string | null }
+201   { ticket: TicketSummaryDto }      + Location: /api/tickets/<id>
+400   VALIDATION_ERROR  details: [{ path: "subject", message: "…" }, …]
+400   INVALID_JSON
+401   UNAUTHORIZED      (no session)
+403   FORBIDDEN         (admin)
+404   NOT_FOUND         "Book not found."  (another author's book, or no such book: indistinguishable on purpose)
+```
+
+`TicketSummaryDto = { id, subject, status, book: { id, title } | null, createdAt, updatedAt }`, in `src/shared/dto.ts`. Task 6b's list reuses it, and Task 6a's detail DTO extends it.
+
+**Decisions**
+- **Validation (`createTicketSchema`, shared by client and server):**
+  - `subject` and `description` are trimmed before length checks (5–150 / 20–5000). That way "     " can't satisfy the minimum
+  - `bookId` is `string | null`; the form's "General / Account level" option sends `null`
+  - `attachmentName` is trimmed and reduced to its basename. Browsers report `C:\fakepath\x.pdf`, and `x.pdf` is stored. It allows ≤255 characters, and empty becomes `null`
+- **Ownership:** the service calls `bookRepo.findOwned(authorId, bookId)`. `authorId` always comes from the session, never the body. A miss → `AppError.notFound("Book")`, and no ticket is created
+- **Defaults:** `status` OPEN, `category`/`priority` null, `priorityRank` 1 (schema defaults). The ticket shows as "Needs triage" once the queue exists
+- **No `onTicketCreated` stub yet.** A no-op hook would be dead code. Tasks 9 and 11 add the call inside `ticketService.create` when they need it. The description above is changed accordingly
+- **Form behaviour:**
+  - Validate on submit with the same schema and show per-field messages
+  - Server field errors arrive via `ApiError.fieldErrors()`, and a 404 maps onto the book field
+  - Any other error shows one banner, and the typed text is kept
+  - The button is disabled while sending. On success: invalidate `["tickets"]`, then `router.push("/author/tickets/<id>")`
+- **Pre-selection:** `?book=BK…` is read in the server page (`await props.searchParams`) and pre-selects that book only if it's one of the author's own. Otherwise the default is "General"
+- **Attachment:** a native file input, with only `file.name` kept. Hint: "Only the file name is sent for now. Our team will ask for the file if they need it."
+
+**Increment A: API slice**
+1. `src/shared/schemas/ticket.ts` + `ticket.test.ts`: boundaries (4/5/150/151 characters, 19/20 characters), whitespace-only rejected, `null` bookId accepted, fakepath stripped
+2. `src/shared/dto.ts`: add `TicketSummaryDto`
+3. `src/server/repositories/ticketRepo.ts`: `create(data)`, returning the ticket with `book { id, title }`
+4. `src/server/services/ticketService.ts` + `ticketService.test.ts` (mock both repos):
+   - creates with a book, and as General
+   - a foreign book → 404 and `create` is never called
+   - an in-production book (BK013) works
+   - `authorId` comes from the argument, not the input
+5. `src/app/api/tickets/route.ts`: `POST = withAuth(…, { roles: ["AUTHOR"] })` → `parseBody` → service → `Response.json(…, { status: 201, headers: { Location } })`
+6. `scripts/smokeRbac.ts`: add rows (light). Anonymous POST → 401, admin POST → 403, Priya POSTing Sneha's `BK011` → 404, Priya with an empty body → 400 `VALIDATION_ERROR`. There's no success row, because every run would create a real ticket
+7. Verify: `npm test`, `npm run lint`, `npm run typecheck`, `npm run smoke:rbac` on `npm run dev`, plus one real `201` via curl. Commit `feat: create support tickets via POST /api/tickets`
+
+**Increment B: form**
+1. `src/app/author/tickets/new/page.tsx` (server): metadata, heading, reads `?book`, renders the form
+2. `src/app/author/tickets/new/NewTicketForm.tsx` (client):
+   - fields: book `Select` from `myBooksQuery` (in-production books labelled with their stage), subject, description, attachment
+   - description has a live `n / 5000` counter, with the "at least 20 characters" hint until met
+   - loading/error states use `LoadingBlock`/`ErrorBlock`
+3. Verify (`npm run dev`), then commit `feat: support ticket form for authors`:
+   - "Ask about this book" on BK013 pre-selects it
+   - an empty submit shows 3 inline errors and makes no request
+   - a valid General ticket and a book ticket each → 201, then the redirect (to a 404 until 6a)
+   - keyboard-only: label clicks focus fields, and errors are announced
+
+**Risks**
+
+| Risk | Mitigation |
+|---|---|
+| The redirect target 404s until Task 6a | Expected; do 6a next. Rows are confirmed via `db:studio` meanwhile |
+| A Zod 4 issue `path` for nested/optional fields | Tested in the schema test, so `fieldErrors()` keys match the field ids |
+| Smoke runs filling the DB with test tickets | No success rows in the smoke table. The manual tickets are few and harmless |
+
+**Status:** ✅ Done on branch `feat/submit-ticket`. Verified: 62 tests pass, lint clean, typecheck clean, 12/12 smoke checks pass.
+
 **Acceptance criteria:**
-- [ ] A valid submission → 201. Invalid input → 400 with per-field messages shown inline (the same schema runs on client and server)
-- [ ] A `bookId` belonging to another author → 404
-- [ ] A ticket about an in-production book works
+- [x] A valid submission → 201. Invalid input → 400 with per-field messages shown inline (the same schema runs on client and server)
+- [x] A `bookId` belonging to another author → 404
+- [x] A ticket about an in-production book works
 
 **Verification:**
-- [ ] Tests pass: ticketService.create (ok / foreign book) with a mocked repo. Schema tests
-- [ ] Build succeeds
-- [ ] `smoke:rbac` gets new rows: an author posting another author's `bookId` → 404, anonymous `POST /api/tickets` → 401
-- [ ] Manual check: submit tickets both with a book and as General
+- [x] Tests pass: ticketService.create (ok / foreign book) with a mocked repo. Schema tests
+- [x] Build succeeds
+- [x] `smoke:rbac` gets new rows: an author posting another author's `bookId` → 404, anonymous `POST /api/tickets` → 401
+- [x] Manual check: submit tickets both with a book and as General
 
 **Dependencies:** Task 4
-**Files likely touched:** `src/shared/schemas/ticket.ts`, `src/app/api/tickets/route.ts`, `src/server/{services/ticketService,repositories/ticketRepo}.ts`, `src/app/author/tickets/new/page.tsx`
-**Estimated scope:** Medium
+**Files likely touched:** A: `src/shared/schemas/ticket{,.test}.ts`, `src/shared/dto.ts`, `src/server/repositories/ticketRepo.ts`, `src/server/services/ticketService{,.test}.ts`, `src/app/api/tickets/route.ts`, `scripts/smokeRbac.ts` · B: `src/app/author/tickets/new/{page,NewTicketForm}.tsx`
+**Estimated scope:** Medium–Large overall, so split into two Medium increments (A: 7 files, mostly small; B: 2 files)
 
 ---
 
@@ -287,8 +361,8 @@ Agent steps: document `AUTH_TRUST_HOST` (local `npm start` only) in `.env.exampl
 
 ### ✅ Checkpoint 2: Author flow
 - [ ] Tests, lint and build are clean
-- [ ] `npm run smoke:rbac` (2 authors + admin against a running app) passes: cross-author books/tickets/messages → 404, author → admin routes → 403
-- [ ] Author logs in → books → raises a ticket → sees it listed (local + deployed)
+- [ ] `npm run smoke:rbac` (2 authors + admin against `npm run dev`) passes: cross-author books/tickets/messages → 404, author → admin routes → 403
+- [ ] Author logs in → books → raises a ticket → sees it listed (locally)
 - [ ] Review with human
 
 ---
@@ -355,7 +429,7 @@ UI: two columns (thread + reply box | context + controls), "Assign to me", and a
 **Verification:**
 - [ ] Tests pass: event → query-key mapping. broadcast swallows errors
 - [ ] Build succeeds
-- [ ] Manual check: two browsers side by side **on the deployed URL**
+- [ ] Manual check: two browsers side by side on `npm run dev` (re-check on the live URL in Task 4b)
 
 **Dependencies:** Task 8
 **Files likely touched:** `src/server/realtime/broadcast.ts`, `src/server/services/ticketService.ts`, `src/lib/supabaseBrowser.ts`, `src/hooks/useLiveTickets.ts`, `src/components/LiveIndicator.tsx`
@@ -364,7 +438,7 @@ UI: two columns (thread + reply box | context + controls), "Assign to me", and a
 ---
 
 ### ✅ Checkpoint 3: Manual ticket lifecycle
-- [ ] Tests, lint, build and `smoke:rbac` are clean. Deployed
+- [ ] Tests, lint, build and `smoke:rbac` are clean (locally)
 - [ ] Author creates → live in the admin queue → admin assigns, notes, replies → author sees it live → resolved
 - [ ] Everything works with **no Gemini key** (the degraded-mode baseline)
 - [ ] Review with human
@@ -464,8 +538,9 @@ UI: two columns (thread + reply box | context + controls), "Assign to me", and a
 ---
 
 ### ✅ Checkpoint 4: AI complete
-- [ ] Tests, lint and build are clean. Deployed with `GEMINI_API_KEY` in Vercel env
-- [ ] With the key: live triage + drafts work on the deployed URL
+- [ ] Tests, lint and build are clean
+- [ ] With the key: live triage + drafts work locally
+- [ ] **Then run Task 4b (deploy)** before Phase 5
 - [ ] With `AI_FORCE_FAIL=true`: ticket creation, fallback triage and manual replies all work
 - [ ] Review with human
 
@@ -480,7 +555,7 @@ UI: two columns (thread + reply box | context + controls), "Assign to me", and a
 **Acceptance criteria:**
 - [ ] Every `src/app/api/**/route.ts` (except the Auth.js catch-all, which is documented separately) is in the spec. A parity test enforces this
 - [ ] Each endpoint lists its role and error responses
-- [ ] `/api-docs` loads on the deployed URL
+- [ ] `/api-docs` loads (locally, and on the live URL once Task 4b is done)
 
 **Verification:**
 - [ ] Tests pass: parity test
