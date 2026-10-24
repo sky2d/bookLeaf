@@ -21,19 +21,21 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 | 8 | Admin ticket detail: status, assign-to-me, internal notes, manual reply | ✅ Done (merged into `main`) |
 | 9 | Real-time updates via Supabase Realtime Broadcast | ✅ Done on `feat/realtime-broadcast`. 123 tests pass, 31/31 smoke pass |
 | CP3 | Manual ticket lifecycle + Realtime | ✅ Verified live in browser (two side-by-side windows) |
-| 10–15 | AI foundation, triage, drafts, eval, docs | ⬜ Next up (`@google/genai` is installed) |
+| 10 | AI module foundation (`src/server/ai/`) | ✅ Done on `feat/ai-foundation` (`2e20c28`). 154 tests pass, live `ai:ping` ok |
+| 11 | Auto-classification + priority with fallback & admin override | ⬜ **Next up** |
+| 12 | AI-drafted responses with targeted context, caching, edit & send | ⬜ Upcoming |
+| 13 | Prompt evaluation + tuning | ⬜ Upcoming |
+| CP4 | AI complete checkpoint | ⬜ Upcoming |
 
-Evidence: `npm test` 123/123 pass (15 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 31/31 pass · live: `GET /api/health` → 200, `/api/me`, `/api/me/books`, `/api/tickets` without a session → 401 JSON, `/author/books` → 307 `/login?next=…`, `/api/admin/tickets` & `/api/admin/tickets/:id/*` author → 403 / admin → 200/201 · secret scan of git history: 0 hits.
+Evidence: `npm test` 154/154 pass (19 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 31/31 pass · `npm run ai:ping` live Gemini 3.5 Flash ping returning "PONG" with token usage and PostgreSQL telemetry logged · secret scan of client bundles (`.next/static`): 0 hits.
 
-Configured in `.env`: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_REALTIME_KEY`.
-Remaining for Phase 4: `GEMINI_API_KEY` (Task 10+).
+Configured in `.env`: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_REALTIME_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL="gemini-3.5-flash"`.
 
 **Next, in order**:
-1. Merge `feat/realtime-broadcast` PR to `main`
-2. **Phase 4: Task 10** — AI module foundation (`src/server/ai/` client, structured KB, facts, usage logging)
-3. **Task 11** — Auto-classification + priority with fallback & admin override
-4. **Task 12** — AI-drafted responses with targeted context, caching, edit & send
-5. **Task 13** — Prompt evaluation + tuning
+1. **Phase 4: Task 11** — Auto-classification + priority triage with fallback & admin override (`src/server/ai/classifier.ts`, `heuristicClassifier.ts`, async triage on ticket creation, `POST /api/admin/tickets/:id/classify`, and UI triage source chips with reasoning tooltips)
+2. **Task 12** — AI-drafted responses with targeted context, caching, edit & send
+3. **Task 13** — Prompt evaluation + tuning
+4. **Checkpoint 4** — AI complete checkpoint
 
 ---
 
