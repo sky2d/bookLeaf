@@ -111,6 +111,11 @@ const CASES: Case[] = [
     status: 404,
     expect: errorCode("NOT_FOUND"),
   },
+  // Ticket list (Task 6b):
+  { as: "anonymous", path: "/api/tickets", status: 401, expect: errorCode("UNAUTHORIZED") },
+  { as: "admin", path: "/api/tickets", status: 403, expect: errorCode("FORBIDDEN") },
+  { as: "priya", path: "/api/tickets", status: 200 },
+  { as: "sneha", path: "/api/tickets", status: 200 },
 ];
 
 /** Minimal cookie jar: keeps name=value pairs from Set-Cookie headers. */

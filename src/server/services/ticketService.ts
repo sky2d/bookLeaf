@@ -92,6 +92,11 @@ export const ticketService = {
     return toTicketSummaryDto(created);
   },
 
+  async listForAuthor(authorId: string): Promise<TicketSummaryDto[]> {
+    const tickets = await ticketRepo.listByAuthor(authorId);
+    return tickets.map(toTicketSummaryDto);
+  },
+
   async getForAuthor(ticketId: string, authorId: string): Promise<AuthorTicketDto> {
     const ticket = await ticketRepo.findByIdForAuthor(ticketId, authorId);
     if (!ticket) {

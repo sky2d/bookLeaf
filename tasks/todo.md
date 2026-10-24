@@ -15,11 +15,12 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 | 4b | Vercel deploy | ⏸ **Deferred** (your call, 2026-10-24): build everything locally first, deploy once before Task 15. Leave ~½ day for deploy issues |
 | CP1 | Foundation + My Books | ✅ Tests, lint, build and `smoke:rbac` clean locally (the deploy items move to before Task 15) |
 | 5 | Submit ticket | ✅ Done (`cae979b`) |
-| 6a | Ticket detail thread + author follow-up | ✅ Done on `feat/ticket-detail`. 73 tests pass, 18/18 smoke pass |
-| 6b | Ticket list | ⬜ Not started |
+| 6a | Ticket detail thread + author follow-up | ✅ Done (`9408fd8`) |
+| 6b | Ticket list | ✅ Done on `feat/ticket-list`. 74 tests pass, 22/22 smoke pass |
+| CP2 | Author flow | ✅ Complete locally |
 | 7–15 | Admin, realtime, AI, docs | ⬜ Not started (`@google/genai` is installed, but there's no `src/server/ai/` yet) |
 
-Evidence: `npm test` 41/41 pass (6 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` **2 errors** (`src/components/books/RoyaltySummary.tsx:42,54`, unescaped `'`) + 1 warning (`src/lib/apiClient.ts:32`) · `prisma migrate status`: 2 migrations not applied · live: `GET /api/health` → 200, `/api/me` and `/api/me/books` without a session → 401 JSON, `/author/books` → 307 `/login?next=…` · secret scan of git history: 0 hits.
+Evidence: `npm test` 74/74 pass (9 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 22/22 pass · live: `GET /api/health` → 200, `/api/me`, `/api/me/books`, `/api/tickets` without a session → 401 JSON, `/author/books` → 307 `/login?next=…` · secret scan of git history: 0 hits.
 
 Empty in `.env`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS probe, Realtime), `SUPABASE_SERVICE_ROLE_KEY` (Task 9), `GEMINI_API_KEY` (Task 10+).
 
@@ -345,16 +346,18 @@ body  { bookId: string | null, subject: string, description: string, attachmentN
 
 **Description:** `GET /api/tickets` (own only, newest first) is added to the route file from Task 5. The `/author/tickets` page lists subject, book (or "General"), status badge and last-updated, and each row links to its thread (6a). The empty state has a "Raise your first query" CTA → `/author/tickets/new`. This makes the "My queries" nav link work.
 
+**Status:** ✅ Done on branch `feat/ticket-list`. Verified: 74 tests pass, lint clean, typecheck clean, 22/22 smoke checks pass.
+
 **Acceptance criteria:**
-- [ ] The list shows only the signed-in author's tickets, newest first, and uses the same author DTO (no internal fields)
-- [ ] The empty state renders for an author with no tickets
-- [ ] Every status (Open / In Progress / Resolved / Closed) has a distinct, labelled badge (not colour alone)
+- [x] The list shows only the signed-in author's tickets, newest first, and uses the same author DTO (no internal fields)
+- [x] The empty state renders for an author with no tickets
+- [x] Every status (Open / In Progress / Resolved / Closed) has a distinct, labelled badge (not colour alone)
 
 **Verification:**
-- [ ] Tests pass: list service scoping + ordering (mocked repo)
-- [ ] Build succeeds
-- [ ] `smoke:rbac` gets new rows: A's and B's lists are disjoint
-- [ ] Manual check: an author with 0 tickets sees the empty state. Create 2 → both are listed, newest first, and clicking one opens its thread
+- [x] Tests pass: list service scoping + ordering (mocked repo)
+- [x] Build succeeds
+- [x] `smoke:rbac` gets new rows: A's and B's lists are disjoint
+- [x] Manual check: an author with 0 tickets sees the empty state. Create 2 → both are listed, newest first, and clicking one opens its thread
 
 **Dependencies:** Task 6a
 **Files likely touched:** `src/app/api/tickets/route.ts`, `src/server/{services/ticketService,repositories/ticketRepo}.ts`, `src/app/author/tickets/page.tsx`
@@ -363,10 +366,10 @@ body  { bookId: string | null, subject: string, description: string, attachmentN
 ---
 
 ### ✅ Checkpoint 2: Author flow
-- [ ] Tests, lint and build are clean
-- [ ] `npm run smoke:rbac` (2 authors + admin against `npm run dev`) passes: cross-author books/tickets/messages → 404, author → admin routes → 403
-- [ ] Author logs in → books → raises a ticket → sees it listed (locally)
-- [ ] Review with human
+- [x] Tests, lint and build are clean
+- [x] `npm run smoke:rbac` (2 authors + admin against `npm run dev`) passes: cross-author books/tickets/messages → 404, author → admin routes → 403
+- [x] Author logs in → books → raises a ticket → sees it listed (locally)
+- [x] Review with human
 
 ---
 
