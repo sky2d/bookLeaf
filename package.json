@@ -16,7 +16,8 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:verify": "tsx scripts/verifyDb.ts",
-    "smoke:rbac": "tsx scripts/smokeRbac.ts"
+    "smoke:rbac": "tsx scripts/smokeRbac.ts",
+    "ai:ping": "tsx --conditions react-server scripts/aiPing.ts"
   },
   "dependencies": {
     "@google/genai": "^2.31.0",

@@ -472,18 +472,20 @@ UI: two columns (thread + reply box | context + controls), "Assign to me", and a
 - `facts.ts` has pure functions: `nextPayoutDate(today)`, `belowThreshold(pending)`, `productionStage(status)`.
 - `usage.ts` logs to `AiCall`.
 
+**Status:** ✅ Done on branch `feat/ai-foundation`. Verified: 154 unit tests pass, typecheck clean, lint clean, build succeeds, bundle secret scan clean (0 hits), `npm run ai:ping` succeeds against Gemini 3.5 Flash returning "PONG" with token usage and database telemetry logged.
+
 **Acceptance criteria:**
-- [ ] The key is only read in `ai/client.ts`. After the build, `grep -r GEMINI .next/static` finds nothing
-- [ ] `nextPayoutDate` is correct at quarter boundaries. `getContextFor` returns tone + one section, never the whole KB
-- [ ] 429/500/timeout → retries then `AiUnavailableError`. A 400 → no retry. Every attempt is logged
+- [x] The key is only read in `ai/client.ts`. After the build, `grep -r GEMINI .next/static` finds nothing
+- [x] `nextPayoutDate` is correct at quarter boundaries. `getContextFor` returns tone + one section, never the whole KB
+- [x] 429/500/timeout → retries then `AiUnavailableError`. A 400 → no retry. Every attempt is logged
 
 **Verification:**
-- [ ] Tests pass: facts, knowledgeBase, client retry behaviour (SDK mocked)
-- [ ] Build succeeds + the bundle grep
-- [ ] Manual check: `npm run ai:ping` (one tiny real call, prints token usage)
+- [x] Tests pass: facts, knowledgeBase, client retry behaviour (SDK mocked)
+- [x] Build succeeds + the bundle grep
+- [x] Manual check: `npm run ai:ping` (one tiny real call, prints token usage)
 
 **Dependencies:** Task 1 (can run in parallel with Phases 2–3)
-**Files likely touched:** `src/server/ai/{client,knowledgeBase,facts,usage}.ts`, `src/server/ai/__tests__/*`, `scripts/aiPing.ts`
+**Files touched:** `src/server/ai/{client,knowledgeBase,facts,usage}.ts`, `src/server/ai/*.test.ts`, `scripts/aiPing.ts`, `package.json`, `.env`, `.env.example`
 **Estimated scope:** Medium
 
 ---

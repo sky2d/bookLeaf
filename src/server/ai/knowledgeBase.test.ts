@@ -1,14 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  DISTRIBUTION_POLICY,
-  getContextFor,
-  ISBN_POLICY,
-  OVERVIEW_POLICY,
-  PRINTING_POLICY,
-  PRODUCTION_POLICY,
-  ROYALTY_POLICY,
-  TONE_AND_STYLE,
-} from "./knowledgeBase";
+import { getContextFor } from "./knowledgeBase";
 
 describe("knowledgeBase.getContextFor", () => {
   it("includes tone and style guidelines in every category context", () => {

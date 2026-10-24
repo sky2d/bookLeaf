@@ -1,5 +1,5 @@
 import "server-only";
-import { getToday } from "@/server/clock";
+import { today as getTodayDate } from "@/server/clock";
 import { formatDate, formatINR } from "@/lib/format";
 import { PRODUCTION_STAGES, productionInfo } from "@/shared/production";
 import { isBelowPayoutThreshold, nextPayout, PAYOUT_THRESHOLD_INR } from "@/shared/royalty";
@@ -11,11 +11,11 @@ export type NextPayoutInfo = {
 
 /** Returns formatted ground-truth payout information as of `today` */
 export function getFormattedNextPayout(today?: Date): NextPayoutInfo {
-  const currentDate = today ?? getToday();
+  const currentDate = today ?? getTodayDate();
   const window = nextPayout(currentDate);
 
   return {
-    payoutBy: formatDate(window.payoutBy),
+    payoutBy: formatDate(window.payoutBy.toISOString()),
     quarterLabel: window.quarterLabel,
   };
 }
