@@ -15,7 +15,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:verify": "tsx scripts/verifyDb.ts"
+    "db:verify": "tsx scripts/verifyDb.ts",
+    "smoke:rbac": "tsx scripts/smokeRbac.ts"
   },
   "dependencies": {
     "@google/genai": "^2.31.0",
