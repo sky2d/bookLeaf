@@ -49,3 +49,32 @@ export type TicketSummaryDto = {
 export type CreateTicketResponse = {
   ticket: TicketSummaryDto;
 };
+
+export type TicketMessageDto = {
+  id: string;
+  senderRole: "AUTHOR" | "ADMIN";
+  senderName: string;
+  body: string;
+  createdAt: string;
+};
+
+export type AuthorTicketDto = {
+  id: string;
+  subject: string;
+  description: string;
+  status: TicketStatus;
+  attachmentName: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  book: { id: string; title: string } | null;
+  messages: TicketMessageDto[];
+};
+
+export type AuthorTicketResponse = {
+  ticket: AuthorTicketDto;
+};
+
+export type CreateMessageResponse = {
+  message: TicketMessageDto;
+};

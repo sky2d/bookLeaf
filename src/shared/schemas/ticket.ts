@@ -43,3 +43,17 @@ export const createTicketSchema = z.object({
 });
 
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
+
+export const createMessageSchema = z.object({
+  body: z
+    .string({ error: "Message is required." })
+    .transform((s) => s.trim())
+    .pipe(
+      z
+        .string()
+        .min(1, "Message cannot be empty.")
+        .max(5000, "Message cannot exceed 5,000 characters."),
+    ),
+});
+
+export type CreateMessageInput = z.infer<typeof createMessageSchema>;
