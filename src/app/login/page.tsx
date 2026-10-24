@@ -1,13 +1,9 @@
 import type { Metadata } from "next";
 import { Wordmark } from "@/components/Wordmark";
+import { safeNextPath } from "@/shared/routes";
 import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = { title: "Sign in" };
-
-/** Only same-site relative paths are honoured, so `?next=` can't be used as an open redirect. */
-function safeNext(next: string | string[] | undefined) {
-  return typeof next === "string" && next.startsWith("/") && !next.startsWith("//") ? next : "/";
-}
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { next } = await searchParams;
@@ -20,7 +16,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <p className="mt-2 text-[15px] text-ink-soft">
           Authors can check royalties, follow their books and talk to our support team. BookLeaf staff use the same page.
         </p>
-        <LoginForm next={safeNext(next)} />
+        <LoginForm next={safeNextPath(next)} />
       </div>
     </main>
   );

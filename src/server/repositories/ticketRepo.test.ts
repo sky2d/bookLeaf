@@ -7,7 +7,33 @@ vi.mock("@/server/db", () => ({
   },
 }));
 
+import { db } from "@/server/db";
 import { ticketRepo } from "./ticketRepo";
+
+describe("ticketRepo.findByIdForAuthor", () => {
+  it("scopes the lookup to the author, so one author can never load another's ticket", async () => {
+    const findFirst = vi.fn().mockResolvedValue(null);
+    Object.assign(db.ticket, { findFirst });
+
+    await ticketRepo.findByIdForAuthor("tkt_1", "AUTH007");
+
+    expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "tkt_1", authorId: "AUTH007" } }));
+  });
+});
+
+describe("ticketRepo.addMessageAndReopen", () => {
+  it("reopens without touching priorityRank, so the ticket keeps sorting by its real priority", async () => {
+    const update = vi.fn();
+    const tx = { ticketMessage: { create: vi.fn().mockResolvedValue({ id: "msg_1" }) }, ticket: { update } };
+    vi.mocked(db.$transaction).mockImplementationOnce(((fn: (t: unknown) => unknown) => fn(tx)) as never);
+
+    await ticketRepo.addMessageAndReopen("tkt_1", "usr_1", "AUTHOR", "Still broken.");
+
+    const { data } = update.mock.calls[0][0];
+    expect(data).toMatchObject({ status: "OPEN", resolvedAt: null });
+    expect(data).not.toHaveProperty("priorityRank");
+  });
+});
 
 describe("ticketRepo.buildWhereClause", () => {
   it("builds unresolved status filter by default", () => {

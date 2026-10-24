@@ -1,6 +1,7 @@
 import "server-only";
 import { AppError } from "@/server/http/AppError";
 import { ticketRepo } from "@/server/repositories/ticketRepo";
+import { userRepo } from "@/server/repositories/userRepo";
 import type {
   AdminTicketDetailResponse,
   AdminTicketDto,
@@ -149,6 +150,10 @@ export const adminTicketService = {
     const existing = await ticketRepo.findByIdForAdmin(id);
     if (!existing) {
       throw new AppError(404, "NOT_FOUND", "Ticket not found.");
+    }
+
+    if (input.assigneeId && !(await userRepo.findAdmin(input.assigneeId))) {
+      throw AppError.badRequest("Tickets can only be assigned to a BookLeaf admin.");
     }
 
     await ticketRepo.updateAdminTicket(id, input);

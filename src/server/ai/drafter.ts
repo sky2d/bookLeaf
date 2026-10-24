@@ -32,17 +32,22 @@ export async function generateDraft(context: DraftContextResult): Promise<Genera
   const startTime = Date.now();
 
   try {
-    const response = await generateWithRetry(async (ai) => {
-      return await ai.models.generateContent({
-        model,
-        contents: context.prompt,
-        config: {
-          systemInstruction: context.systemInstruction,
-          temperature: 0.2,
-          maxOutputTokens: 1500,
-        },
-      });
-    });
+    // One retry: worst case 10s + 0.5s backoff + 10s stays inside the draft route's 30s maxDuration,
+    // so a slow Gemini ends in our AI_UNAVAILABLE response instead of a platform timeout.
+    const response = await generateWithRetry(
+      async (ai) => {
+        return await ai.models.generateContent({
+          model,
+          contents: context.prompt,
+          config: {
+            systemInstruction: context.systemInstruction,
+            temperature: 0.2,
+            maxOutputTokens: 1500,
+          },
+        });
+      },
+      { maxRetries: 1 },
+    );
 
     const latencyMs = Date.now() - startTime;
     const rawText = (response.text ?? "").trim();

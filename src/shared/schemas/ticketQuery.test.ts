@@ -75,6 +75,8 @@ describe("ticketQuerySchema", () => {
   it("rejects invalid date formats", () => {
     expect(() => ticketQuerySchema.parse({ from: "24-10-2026" })).toThrow();
     expect(() => ticketQuerySchema.parse({ to: "not-a-date" })).toThrow();
+    expect(() => ticketQuerySchema.parse({ to: "2026-13-01" })).toThrow();
+    expect(() => ticketQuerySchema.parse({ from: "2026-02-30" })).toThrow();
   });
 
   it("rejects invalid page and pageSize numbers", () => {

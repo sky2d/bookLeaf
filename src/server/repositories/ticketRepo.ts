@@ -130,7 +130,6 @@ export const ticketRepo = {
         data: {
           status: "OPEN",
           resolvedAt: null,
-          priorityRank: 1,
           updatedAt: new Date(),
         },
       });
