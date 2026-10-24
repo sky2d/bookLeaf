@@ -120,3 +120,86 @@ export type AdminTicketQueueResponse = {
     totalPages: number;
   };
 };
+
+export type InternalNoteDto = {
+  id: string;
+  adminId: string;
+  adminName: string;
+  body: string;
+  createdAt: string;
+};
+
+export type AdminTicketMessageDto = {
+  id: string;
+  senderId: string;
+  senderRole: "AUTHOR" | "ADMIN";
+  senderName: string;
+  body: string;
+  createdAt: string;
+  usedAiDraft: boolean;
+};
+
+export type AdminTicketDetailDto = {
+  id: string;
+  subject: string;
+  description: string;
+  status: TicketStatus;
+  category: TicketCategory | null;
+  categorySource: TriageSource | null;
+  priority: TicketPriority | null;
+  prioritySource: TriageSource | null;
+  priorityRank: number;
+  aiConfidence: number | null;
+  aiReasoning: string | null;
+  attachmentName: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+  author: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    city: string;
+    joinedDate: string;
+  };
+  book: {
+    id: string;
+    title: string;
+    isbn: string;
+    genre: string;
+    status: string;
+    publicationDate: string | null;
+    mrp: number | null;
+    royaltyPerCopy: number | null;
+    copiesSold: number;
+    royaltyEarned: number;
+    royaltyPaid: number;
+    royaltyPending: number;
+    lastPayoutDate: string | null;
+    printPartner: string | null;
+    availableOn: string[];
+  } | null;
+  authorOtherBooks: Array<{
+    id: string;
+    title: string;
+    status: string;
+    copiesSold: number;
+    royaltyEarned: number;
+  }>;
+  assignee: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
+  messages: AdminTicketMessageDto[];
+  notes: InternalNoteDto[];
+};
+
+export type AdminTicketDetailResponse = {
+  ticket: AdminTicketDetailDto;
+};
+
+export type CreateInternalNoteResponse = {
+  note: InternalNoteDto;
+};
