@@ -171,7 +171,12 @@ export const adminTicketService = {
       throw new AppError(409, "CONFLICT", "This ticket is closed and cannot receive replies.");
     }
 
-    const message = await ticketRepo.addAdminReply(ticketId, adminId, input.body);
+    const message = await ticketRepo.addAdminReply(
+      ticketId,
+      adminId,
+      input.body,
+      input.usedAiDraft ?? false,
+    );
     await notifyTicketUpdated(ticketId, ticket.authorId, "ticket.reply");
 
     return {

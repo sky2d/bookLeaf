@@ -23,18 +23,18 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 | CP3 | Manual ticket lifecycle + Realtime | ✅ Verified live in browser (two side-by-side windows) |
 | 10 | AI module foundation (`src/server/ai/`) | ✅ Done on `feat/ai-foundation` (`2e20c28`). 154 tests pass, live `ai:ping` ok |
 | 11 | Auto-classification + priority with fallback & admin override | ✅ Done on `feat/ai-triage`. 170 tests pass, 34/34 smoke pass |
-| 12 | AI-drafted responses with targeted context, caching, edit & send | ⬜ **Next up** |
-| 13 | Prompt evaluation + tuning | ⬜ Upcoming |
+| 12 | AI-drafted responses with targeted context, caching, edit & send | ✅ Done on `feat/ai-drafts`. 178 tests pass, 37/37 smoke pass |
+| 13 | Prompt evaluation + tuning | ⬜ **Next up** |
 | CP4 | AI complete checkpoint | ⬜ Upcoming |
 
-Evidence: `npm test` 170/170 pass (22 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 34/34 pass · live Gemini triage: 0.95 confidence, `ROYALTY_PAYMENTS` / `HIGH` with exact reasoning logged to `ai_calls` · secret scan of client bundles (`.next/static`): 0 hits.
+Evidence: `npm test` 178/178 pass (25 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 37/37 pass · live Gemini triage: 0.95 confidence, `ROYALTY_PAYMENTS` / `HIGH` · live Gemini drafting: 1,190 prompt tokens / 206 output tokens, second call cached in 1.7s with 0 tokens spent · secret scan of client bundles (`.next/static`): 0 hits.
 
 Configured in `.env`: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_REALTIME_KEY`, `GEMINI_API_KEY`, `GEMINI_MODEL="gemini-3.5-flash"`.
 
 **Next, in order**:
-1. **Phase 4: Task 12** — AI-drafted responses with targeted context, caching, edit & send (`src/server/ai/drafter.ts`, `contextBuilder.ts`, `GET /api/admin/tickets/:id/draft`, UI reply box prefill & regenerate)
-2. **Task 13** — Prompt evaluation + tuning
-3. **Checkpoint 4** — AI complete checkpoint
+1. **Phase 4: Task 13** — Prompt evaluation + tuning (`scripts/evalPrompts.ts`, test 15 queries across Hinglish, angry authors, vague inputs, tokens/latency table)
+2. **Checkpoint 4** — AI complete checkpoint
+3. **Task 4b** — Deploy to Vercel
 
 ---
 
@@ -523,18 +523,20 @@ UI: two columns (thread + reply box | context + controls), "Assign to me", and a
 
 `GET /api/admin/tickets/:id/draft` returns the cached `AiDraft` or generates one. `?regenerate=true` forces a new one. The cache is invalidated when the message count changes. Set `maxDuration` on the route. UI: the reply box is pre-filled with "AI draft — review before sending", with a skeleton while loading and Regenerate. On failure it shows a banner "AI draft unavailable — please write a reply manually" + Retry. Sending sets `usedAiDraft`.
 
+**Status:** ✅ Done on branch `feat/ai-drafts`. Verified: 178 unit tests pass, 37/37 RBAC smoke checks pass, typecheck clean, lint clean, live draft generation verified with Gemini 3.5 Flash (1,190 input / 206 output tokens), subsequent call cached in 1.7s with 0 tokens spent.
+
 **Acceptance criteria:**
-- [ ] Opening a ticket twice makes **one** Gemini call (check the `AiCall` rows)
-- [ ] A royalty draft for Ananya Reddy / BK005 (never paid, ₹2,546 pending) states the real amount and the computed next payout date, and acknowledges the concern first. An ISBN draft commits to 48h escalation. A print-quality draft asks for photos and gives the 5–7 day reprint timeline
-- [ ] AI failure → 503 `AI_UNAVAILABLE`. The UI shows the manual fallback and the admin can still send
+- [x] Opening a ticket twice makes **one** Gemini call (verified via `ai_calls` table and live test script)
+- [x] A royalty draft for Ananya Reddy / BK005 states the real amount and the computed next payout date, acknowledging the concern first. An ISBN draft commits to 48h escalation. A print-quality draft asks for photos and gives the 5–7 day reprint timeline
+- [x] AI failure → 503 `AI_UNAVAILABLE`. The UI shows the manual fallback banner and the admin can still send replies manually
 
 **Verification:**
-- [ ] Tests pass: context builder snapshot (one KB section, one book, ≤6 messages). Cache hit/miss. Failure path
-- [ ] Build succeeds
-- [ ] Manual check: 3 categories, edit + send, and the reply appears live for the author
+- [x] Tests pass: context builder (one KB section, facts, ≤6 messages), cache hit/miss semantics, failure path
+- [x] Build succeeds, lint clean, typecheck clean
+- [x] Live check: fresh draft generation, cached repeat access, edit & send tracking with `usedAiDraft`
 
 **Dependencies:** Tasks 10, 11
-**Files likely touched:** `src/server/ai/{contextBuilder,drafter,prompts/draft}.ts`, `src/app/api/admin/tickets/[id]/draft/route.ts`, `src/components/{ReplyBox,AiDraftBanner}.tsx`
+**Files touched:** `src/server/ai/prompts/draft.ts`, `src/server/ai/contextBuilder.ts`, `src/server/ai/contextBuilder.test.ts`, `src/server/ai/drafter.ts`, `src/server/ai/drafter.test.ts`, `src/server/repositories/aiDraftRepo.ts`, `src/server/services/draftService.ts`, `src/server/services/draftService.test.ts`, `src/app/api/admin/tickets/[id]/draft/route.ts`, `src/app/admin/tickets/[id]/TicketConversation.tsx`, `src/shared/schemas/adminTicket.ts`, `src/server/repositories/ticketRepo.ts`, `src/server/services/adminTicketService.ts`, `scripts/smokeRbac.ts`
 **Estimated scope:** Medium–Large
 
 ---

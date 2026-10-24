@@ -318,7 +318,7 @@ export const ticketRepo = {
     });
   },
 
-  async addAdminReply(ticketId: string, adminId: string, body: string) {
+  async addAdminReply(ticketId: string, adminId: string, body: string, usedAiDraft = false) {
     return db.$transaction(async (tx) => {
       const message = await tx.ticketMessage.create({
         data: {
@@ -326,6 +326,7 @@ export const ticketRepo = {
           senderId: adminId,
           senderRole: "ADMIN",
           body,
+          usedAiDraft,
         },
         include: {
           sender: {

@@ -38,6 +38,7 @@ export const createAdminMessageSchema = z.object({
         .min(1, "Message cannot be empty.")
         .max(5000, "Message cannot exceed 5,000 characters."),
     ),
+  usedAiDraft: z.boolean().optional(),
 });
 
 export type CreateAdminMessageInput = z.infer<typeof createAdminMessageSchema>;
