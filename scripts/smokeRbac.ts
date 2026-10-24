@@ -83,6 +83,34 @@ const CASES: Case[] = [
     expect: errorCode("NOT_FOUND"),
   },
   { as: "priya", method: "POST", path: "/api/tickets", body: {}, status: 400, expect: errorCode("VALIDATION_ERROR") },
+  // Ticket detail & messages:
+  { as: "anonymous", path: "/api/tickets/nonexistent-id", status: 401, expect: errorCode("UNAUTHORIZED") },
+  { as: "admin", path: "/api/tickets/nonexistent-id", status: 403, expect: errorCode("FORBIDDEN") },
+  { as: "priya", path: "/api/tickets/nonexistent-id", status: 404, expect: errorCode("NOT_FOUND") },
+  {
+    as: "anonymous",
+    method: "POST",
+    path: "/api/tickets/nonexistent-id/messages",
+    body: { body: "Hello" },
+    status: 401,
+    expect: errorCode("UNAUTHORIZED"),
+  },
+  {
+    as: "admin",
+    method: "POST",
+    path: "/api/tickets/nonexistent-id/messages",
+    body: { body: "Hello" },
+    status: 403,
+    expect: errorCode("FORBIDDEN"),
+  },
+  {
+    as: "priya",
+    method: "POST",
+    path: "/api/tickets/nonexistent-id/messages",
+    body: { body: "Hello" },
+    status: 404,
+    expect: errorCode("NOT_FOUND"),
+  },
 ];
 
 /** Minimal cookie jar: keeps name=value pairs from Set-Cookie headers. */

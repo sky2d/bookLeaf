@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createTicketSchema, sanitizeAttachmentName } from "./ticket";
+import { createMessageSchema, createTicketSchema, sanitizeAttachmentName } from "./ticket";
 
 describe("sanitizeAttachmentName", () => {
   it("extracts basename from Windows fakepath", () => {
@@ -83,5 +83,30 @@ describe("createTicketSchema", () => {
     expect(createTicketSchema.safeParse({ ...validBase, description: "a".repeat(5001) }).success).toBe(false);
     // whitespace only
     expect(createTicketSchema.safeParse({ ...validBase, description: " ".repeat(30) }).success).toBe(false);
+  });
+});
+
+describe("createMessageSchema", () => {
+  it("accepts valid message body", () => {
+    const res = createMessageSchema.safeParse({ body: "Please check this update." });
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.data.body).toBe("Please check this update.");
+    }
+  });
+
+  it("trims message body", () => {
+    const res = createMessageSchema.parse({ body: "   Hello   " });
+    expect(res.body).toBe("Hello");
+  });
+
+  it("rejects empty or whitespace-only message", () => {
+    expect(createMessageSchema.safeParse({ body: "" }).success).toBe(false);
+    expect(createMessageSchema.safeParse({ body: "     " }).success).toBe(false);
+  });
+
+  it("enforces max length 5000", () => {
+    expect(createMessageSchema.safeParse({ body: "a".repeat(5000) }).success).toBe(true);
+    expect(createMessageSchema.safeParse({ body: "a".repeat(5001) }).success).toBe(false);
   });
 });
