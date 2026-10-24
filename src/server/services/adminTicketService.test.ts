@@ -21,6 +21,13 @@ vi.mock("@/server/repositories/ticketRepo", () => ({
   },
 }));
 
+const notifyTicketUpdated = vi.fn();
+const notifyAdminOnly = vi.fn();
+vi.mock("@/server/realtime/broadcast", () => ({
+  notifyTicketUpdated: (...args: unknown[]) => notifyTicketUpdated(...args),
+  notifyAdminOnly: (...args: unknown[]) => notifyAdminOnly(...args),
+}));
+
 const { adminTicketService } = await import("./adminTicketService");
 
 describe("adminTicketService.listQueue", () => {
@@ -284,6 +291,7 @@ describe("adminTicketService.updateTicket", () => {
       status: "IN_PROGRESS",
       priority: "CRITICAL",
     });
+    expect(notifyTicketUpdated).toHaveBeenCalledWith("TCK020", "AUTH001", "ticket.updated");
     expect(res.ticket.status).toBe("IN_PROGRESS");
   });
 
@@ -305,6 +313,7 @@ describe("adminTicketService.replyToTicket", () => {
     findByIdForAdmin.mockResolvedValueOnce({
       id: "TCK030",
       status: "OPEN",
+      authorId: "AUTH001",
     });
 
     addAdminReply.mockResolvedValueOnce({
@@ -323,6 +332,7 @@ describe("adminTicketService.replyToTicket", () => {
     });
 
     expect(addAdminReply).toHaveBeenCalledWith("TCK030", "ADM001", "Working on it.");
+    expect(notifyTicketUpdated).toHaveBeenCalledWith("TCK030", "AUTH001", "ticket.reply");
     expect(res.message.id).toBe("MSG020");
     expect(res.message.senderName).toBe("Support Lead");
   });
@@ -365,6 +375,7 @@ describe("adminTicketService.addNote", () => {
     });
 
     expect(addInternalNote).toHaveBeenCalledWith("TCK040", "ADM001", "Private internal detail");
+    expect(notifyAdminOnly).toHaveBeenCalledWith("TCK040", "ticket.note");
     expect(res.note.id).toBe("NOTE010");
     expect(res.note.adminName).toBe("Support Lead");
     expect(res.note.body).toBe("Private internal detail");

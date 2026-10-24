@@ -5,6 +5,7 @@ import { bookRepo } from "@/server/repositories/bookRepo";
 import { ticketRepo } from "@/server/repositories/ticketRepo";
 import type { AuthorTicketDto, TicketMessageDto, TicketSummaryDto } from "@/shared/dto";
 import type { CreateMessageInput, CreateTicketInput } from "@/shared/schemas/ticket";
+import { notifyTicketUpdated } from "@/server/realtime/broadcast";
 
 export type TicketWithBook = {
   id: string;
@@ -89,6 +90,8 @@ export const ticketService = {
       attachmentName: input.attachmentName,
     });
 
+    await notifyTicketUpdated(created.id, authorId, "ticket.created");
+
     return toTicketSummaryDto(created);
   },
 
@@ -126,6 +129,8 @@ export const ticketService = {
       ticket.status === "RESOLVED"
         ? await ticketRepo.addMessageAndReopen(ticketId, userId, "AUTHOR", input.body)
         : await ticketRepo.addMessage(ticketId, userId, "AUTHOR", input.body);
+
+    await notifyTicketUpdated(ticketId, authorId, "ticket.message");
 
     return toTicketMessageDto(created);
   },

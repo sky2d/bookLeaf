@@ -14,6 +14,7 @@ import type {
   UpdateTicketInput,
 } from "@/shared/schemas/adminTicket";
 import type { TicketQueryInput } from "@/shared/schemas/ticketQuery";
+import { notifyAdminOnly, notifyTicketUpdated } from "@/server/realtime/broadcast";
 
 export const adminTicketService = {
   async listQueue(query: TicketQueryInput, currentUserId: string): Promise<AdminTicketQueueResponse> {
@@ -151,6 +152,8 @@ export const adminTicketService = {
     }
 
     await ticketRepo.updateAdminTicket(id, input);
+    await notifyTicketUpdated(id, existing.authorId, "ticket.updated");
+
     return this.getTicketDetail(id);
   },
 
@@ -169,6 +172,7 @@ export const adminTicketService = {
     }
 
     const message = await ticketRepo.addAdminReply(ticketId, adminId, input.body);
+    await notifyTicketUpdated(ticketId, ticket.authorId, "ticket.reply");
 
     return {
       message: {
@@ -192,6 +196,7 @@ export const adminTicketService = {
     }
 
     const note = await ticketRepo.addInternalNote(ticketId, adminId, input.body);
+    await notifyAdminOnly(ticketId, "ticket.note");
 
     return {
       note: {
