@@ -7,7 +7,19 @@ vi.mock("@/server/db", () => ({
   },
 }));
 
+import { db } from "@/server/db";
 import { ticketRepo } from "./ticketRepo";
+
+describe("ticketRepo.findByIdForAuthor", () => {
+  it("scopes the lookup to the author, so one author can never load another's ticket", async () => {
+    const findFirst = vi.fn().mockResolvedValue(null);
+    Object.assign(db.ticket, { findFirst });
+
+    await ticketRepo.findByIdForAuthor("tkt_1", "AUTH007");
+
+    expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "tkt_1", authorId: "AUTH007" } }));
+  });
+});
 
 describe("ticketRepo.buildWhereClause", () => {
   it("builds unresolved status filter by default", () => {

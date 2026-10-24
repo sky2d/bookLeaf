@@ -251,6 +251,27 @@ async function main() {
     sessions.set(name, creds ? await login(creds) : null);
   }
 
+  // Cross-author isolation needs a real ticket: Priya opens one, Sneha must not be able to see or reply to it.
+  const created = await fetch(`${BASE_URL}/api/tickets`, {
+    method: "POST",
+    headers: { Cookie: sessions.get("priya")!.header(), "Content-Type": "application/json" },
+    body: JSON.stringify({ subject: "Smoke test: isolation", description: "Created by smoke:rbac to check cross-author access." }),
+  });
+  if (created.status !== 201) throw new Error(`Could not create Priya's test ticket (HTTP ${created.status})`);
+  const { ticket } = (await created.json()) as { ticket: { id: string } };
+  CASES.push(
+    { as: "priya", path: `/api/tickets/${ticket.id}`, status: 200 },
+    { as: "sneha", path: `/api/tickets/${ticket.id}`, status: 404, expect: errorCode("NOT_FOUND") },
+    {
+      as: "sneha",
+      method: "POST",
+      path: `/api/tickets/${ticket.id}/messages`,
+      body: { body: "Replying to someone else's ticket" },
+      status: 404,
+      expect: errorCode("NOT_FOUND"),
+    },
+  );
+
   let failures = 0;
   for (const c of CASES) {
     const method = c.method ?? "GET";
