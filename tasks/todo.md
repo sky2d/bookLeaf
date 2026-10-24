@@ -3,6 +3,32 @@
 Stack: Next.js (App Router) · Prisma · Supabase Postgres · Auth.js v5 · Gemini · Vercel. Plan: [plan.md](plan.md).
 Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `npx prisma migrate dev`, `npx prisma db seed`, `npm run smoke:rbac`.
 
+## Status (checked 2026-10-24)
+
+| # | Task | State |
+|---|---|---|
+| 1 | Scaffold + API error layer + health | ✅ Done (`a88c74a`) |
+| 2 | Prisma schema + deny-all RLS + seed | ✅ Done. Applied to Supabase 2026-10-24, `db:verify` all ✔ |
+| 3 | Login end-to-end | ✅ Done. Verified live 2026-10-24 |
+| 4 | My Books page | ✅ Done on `feat/my-books` (waiting on the PR merge). A visual check in the browser is still open |
+| 4a | `smoke:rbac` script (new: Checkpoint 2 needed it, but no task created it) | ⬜ Not started |
+| 4b | First Vercel deploy (new: Checkpoint 1 had no task with the steps) | ⬜ Not started. No git remote, no Vercel CLI |
+| CP1 | Foundation + My Books + early deploy (moved after 4b: Task 4 started before CP1) | 🟡 Tests, lint and build clean. Never deployed |
+| 5, 6a, 6b | Submit ticket, ticket detail, ticket list (Task 6 split in two: it was 7+ files) | ⬜ Not started |
+| 7–15 | Admin, realtime, AI, docs | ⬜ Not started (`@google/genai` is installed, but there's no `src/server/ai/` yet) |
+
+Evidence: `npm test` 41/41 pass (6 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` **2 errors** (`src/components/books/RoyaltySummary.tsx:42,54`, unescaped `'`) + 1 warning (`src/lib/apiClient.ts:32`) · `prisma migrate status`: 2 migrations not applied · live: `GET /api/health` → 200, `/api/me` and `/api/me/books` without a session → 401 JSON, `/author/books` → 307 `/login?next=…` · secret scan of git history: 0 hits.
+
+Empty in `.env`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS probe, Realtime), `SUPABASE_SERVICE_ROLE_KEY` (Task 9), `GEMINI_API_KEY` (Task 10+).
+
+**Next, in order** (each step leaves the app working; details under each task's "To finish"):
+1. ~~**Task 2:** apply migrations + seed~~ ✅
+2. ~~**Task 3:** live login check~~ ✅
+3. ~~**Task 4:** fix lint, add the `bookService` test, commit~~ ✅ (open the page in a browser to check the visuals)
+4. **Task 4a:** `smoke:rbac` v1 (anonymous / 2 authors / admin against the routes that exist today)
+5. **Task 4b:** GitHub remote + Vercel deploy, then **Checkpoint 1**
+6. **Task 5 → 6a → 6b**, then **Checkpoint 2**
+
 ---
 
 ## Phase 1: Foundation
@@ -11,15 +37,17 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 
 **Description:** `create-next-app` (TypeScript, App Router, Tailwind, ESLint, `src/`). Add Vitest, zod, `server-only` and `@tanstack/react-query`. Create `src/server/http/`: `AppError` (status, code, details), and `apiHandler(fn)`, which maps `AppError`/`ZodError`/unknown errors to `{ error: { code, message, details } }`. Add `GET /api/health`, plus `.env.example` (DATABASE_URL, DIRECT_URL, AUTH_SECRET, GEMINI_API_KEY, GEMINI_MODEL, NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ADMIN_REALTIME_KEY, APP_TODAY, AI_FORCE_FAIL) and a `.gitignore` that covers `.env*.local`. Run `git init` and make the first commit.
 
+**Status:** ✅ Done (`a88c74a`)
+
 **Acceptance criteria:**
-- [ ] `npm run dev` serves the app. `GET /api/health` → `200 { status: "ok" }`
-- [ ] `AppError(404,'NOT_FOUND')` → 404 JSON. `ZodError` → 400 with field details. An unknown error → 500 with a generic message (logged server-side)
-- [ ] No secrets in the repo. `.env.example` marks which variables are server-only
+- [x] `npm run dev` serves the app. `GET /api/health` → `200 { status: "ok" }`
+- [x] `AppError(404,'NOT_FOUND')` → 404 JSON. `ZodError` → 400 with field details. An unknown error → 500 with a generic message (logged server-side)
+- [x] No secrets in the repo. `.env.example` marks which variables are server-only
 
 **Verification:**
-- [ ] Tests pass: `npm test` (apiHandler mapping)
-- [ ] Build succeeds: `npm run build`
-- [ ] Manual check: `curl localhost:3000/api/health`
+- [x] Tests pass: `npm test` (apiHandler mapping)
+- [x] Build succeeds: `npm run build`
+- [x] Manual check: `curl localhost:3000/api/health`
 
 **Dependencies:** None
 **Files likely touched:** `package.json`, `src/server/http/{AppError,apiHandler}.ts`, `src/app/api/health/route.ts`, `.env.example`, `vitest.config.ts`
@@ -34,14 +62,21 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 - creates a `User` per author (bcrypt hash, role AUTHOR, `authorId`, random `realtimeKey`)
 - creates 2 ADMIN users.
 
+**Status:** ✅ Done. Migrations + seed applied 2026-10-24. `db:verify`: 10/18/12, BK013 nulls kept, RLS on all 9 tables, the anon REST probe returns HTTP 401 with 0 rows. A second seed run left the counts unchanged.
+
+**To finish:**
+1. Put `NEXT_PUBLIC_SUPABASE_ANON_KEY` in `.env` (Supabase → Project Settings → API) so `db:verify` can run the REST probe
+2. `npm run db:deploy && npm run db:seed && npm run db:verify` (runs against `DIRECT_URL`)
+3. Run `npm run db:seed && npm run db:verify` a second time: the counts must not change (proves the seed is idempotent)
+
 **Acceptance criteria:**
-- [ ] After migrate + seed: 10 authors, 18 books, 12 users. Re-running the seed doesn't create duplicates
-- [ ] BK013/BK015 keep null `mrp`/`publicationDate`/`printPartner` and an empty `availableOn`. Text IDs `AUTH001`/`BK001` are kept
-- [ ] `curl $SUPABASE_URL/rest/v1/books -H "apikey: $ANON"` returns no rows (RLS lockdown works)
+- [x] After migrate + seed: 10 authors, 18 books, 12 users. Re-running the seed doesn't create duplicates
+- [x] BK013/BK015 keep null `mrp`/`publicationDate`/`printPartner` and an empty `availableOn`. Text IDs `AUTH001`/`BK001` are kept
+- [x] `curl $SUPABASE_URL/rest/v1/books -H "apikey: $ANON"` returns no rows (RLS lockdown works)
 
 **Verification:**
-- [ ] Tests pass: `npm test` (a seed mapping unit test: JSON row → Prisma input, nulls preserved)
-- [ ] Build succeeds
+- [x] Tests pass: `npm test` (a seed mapping unit test: JSON row → Prisma input, nulls preserved)
+- [x] Build succeeds
 - [ ] Manual check: `npx prisma studio` shows the seeded data. Run the curl above
 
 **Dependencies:** Task 1 (needs the Supabase project + connection strings from the user)
@@ -61,27 +96,30 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 - `GET /api/me`.
 - Login page using `signIn('credentials', { redirect: false })`, then a redirect by role. Layouts with a header and a logout button.
 
+**Status:** ✅ Done. Verified 2026-10-24 over HTTP against `npm run dev`: Priya → `/author/books` with only BK001/BK002, admin → `/admin/tickets`, admin `/api/me/books` → 403, a wrong password and an unknown email both give no session, sign-out clears the session. Note: Next 16 renamed middleware, so it lives in `src/proxy.ts`.
+
+**To finish** (needs Task 2 applied; `npm run dev`):
+1. Log in as `priya.sharma@email.com` / `Author@123` → `/author/books`, and as `admin@bookleaf.com` / `Admin@123` → `/admin/tickets`
+2. A wrong password and an unknown email show the same message. A refresh keeps the session. Sign out → `/login`, and `/author/books` then redirects back to `/login`
+3. Testing a production build locally (`npm start`) needs `AUTH_TRUST_HOST=true`. Auth.js only trusts the host automatically on Vercel or in dev
+
 **Acceptance criteria:**
-- [ ] Valid creds → session cookie, landing on `/author/books` or `/admin/tickets` by role. Wrong password and unknown email show the same generic error
-- [ ] Without a session, a protected API route → 401 JSON (not an HTML redirect). An author calling `/api/admin/*` → 403
-- [ ] A refresh keeps the session. Logout clears it
+- [x] Valid creds → session cookie, landing on `/author/books` or `/admin/tickets` by role. Wrong password and unknown email show the same generic error
+- [x] Without a session, a protected API route → 401 JSON (not an HTML redirect). An author calling `/api/admin/*` → 403 *(no `/api/admin/*` routes exist yet; the role 403 was verified via admin → `/api/me/books`)*
+- [x] A refresh keeps the session. Logout clears it
 
 **Verification:**
-- [ ] Tests pass: `withAuth` unit tests (no session / wrong role / ok) with `auth()` mocked. Credentials `authorize` unit test
-- [ ] Build succeeds
-- [ ] Manual check: log in as `priya.sharma@email.com` and as `admin@bookleaf.com`
+- [x] Tests pass: `withAuth` unit tests (no session / wrong role / ok) with `auth()` mocked. Credentials `authorize` unit test
+- [x] Build succeeds
+- [x] Manual check: log in as `priya.sharma@email.com` and as `admin@bookleaf.com`
 
 **Dependencies:** Task 2
-**Files likely touched:** `src/auth.ts`, `src/auth.config.ts`, `src/middleware.ts`, `src/app/api/auth/[...nextauth]/route.ts`, `src/server/http/withAuth.ts`, `src/app/api/me/route.ts`, `src/app/login/page.tsx`
+**Files likely touched:** `src/auth.ts`, `src/proxy.ts`, `src/server/auth/*`, `src/app/api/auth/[...nextauth]/route.ts`, `src/server/http/withAuth.ts`, `src/app/api/me/route.ts`, `src/app/login/page.tsx`
 **Estimated scope:** Medium
 
 ---
 
-### ✅ Checkpoint 1: Foundation + early deploy
-- [ ] `npm test`, `npm run lint` and `npm run build` are clean
-- [ ] Deployed to Vercel with env vars set (`AUTH_SECRET`, pooler `DATABASE_URL`). Migrations + seed applied to Supabase
-- [ ] Both roles can log in **at the live URL**
-- [ ] Review with human before proceeding
+> Checkpoint 1 now sits after Task 4b (Task 4 was started before it).
 
 ---
 
@@ -91,25 +129,100 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 
 **Description:** `GET /api/me/books` (AUTHOR) → `bookService.listForAuthor(ctx.user.authorId)`. The page shows title, ISBN, genre, publication date, status, MRP, copies sold, and royalty earned/paid/pending, plus a summary strip of totals. It handles the edge cases on purpose.
 
+**Status:** ✅ Done on branch `feat/my-books`. Verified 2026-10-24: 48 tests pass, lint has 0 problems, typecheck clean. Live API data matches every edge case (Sneha 3 books incl. BK013, Kavita ₹850 `belowThreshold`, Ananya BK005 never paid ₹2,546, admin → 403). Still open: a visual check in the browser. Previously: Built so far: `GET /api/me/books` (AUTHOR-only), `bookService` + `bookRepo` (scoped by `authorId`), `src/shared/{dto,royalty,production}.ts`, `src/server/clock.ts` (`APP_TODAY`), `src/lib/{format,apiClient}.ts`, the page + `components/books/*` (shelf, royalty summary, production progress, per-book details) and `components/ui/States.tsx`. Left: 2 lint errors in `RoyaltySummary.tsx`, the `bookService` test, the manual check, the commit.
+
 **Acceptance criteria:**
-- [ ] Each author sees only their books (Sneha Kulkarni: 3, including BK013 in production). An admin calling it → 403
-- [ ] In-production books show a stage badge and "—" for missing MRP/date/partner, never `null`/`NaN`. Zero pending → "₹0 · All paid up". Never paid → "No payout yet"
-- [ ] Pending below ₹1,000 gets the note "Below ₹1,000 minimum — rolls over to next quarter" (BK016 ₹850). INR shown in `en-IN` format
+- [x] Each author sees only their books (Sneha Kulkarni: 3, including BK013 in production). An admin calling it → 403 *(verified via the live API)*
+- [ ] In-production books show a stage badge and "—" for missing MRP/date/partner, never `null`/`NaN`. Zero pending → "₹0 · All paid up". Never paid → "No payout yet" *(implemented; "₹0" and "All paid up" render as separate lines, not one string)*
+- [ ] Pending below ₹1,000 gets the note "Below ₹1,000 minimum — rolls over to next quarter" (BK016 ₹850). INR shown in `en-IN` format *(implemented on the account-level total in `RoyaltySummary`, which matches the policy; Kavita's total is ₹850. Wording differs from the spec)*
 
 **Verification:**
-- [ ] Tests pass: `format.ts` tests (INR, nulls, dates). bookService test with a mocked repo
-- [ ] Build succeeds
-- [ ] Manual check: log in as Sneha Kulkarni, Kavita Deshmukh and Ananya Reddy
+- [x] Tests pass: `format.ts` tests (INR, nulls, dates). bookService test with a mocked repo (`src/server/services/bookService.test.ts`)
+- [x] Build succeeds
+- [ ] Manual check: log in as Sneha Kulkarni, Kavita Deshmukh and Ananya Reddy *(data verified via the API; visual check in the browser still open)*
+
+**To finish:**
+1. Lint to 0 problems with no `eslint-disable`: escape the `'` at `RoyaltySummary.tsx:42,54`. In `apiClient.ts:32`, build the login redirect as an absolute URL (`new URL("/login", window.location.origin)`); the rule only flags relative destinations
+2. Add `src/server/services/bookService.test.ts` (mock `bookRepo` and `@/server/clock`):
+   - `listForAuthor` queries with the given authorId
+   - `toBookDto` keeps BK013's nulls and parses its stage (Cover Design, index 2)
+   - `summarise` gives the right totals, `belowThreshold` for Kavita's ₹850, and `nextPayout` for a pinned date
+3. Manual check (seeded DB):
+   - Sneha: 3 books, BK013 shows the stage strip and "—" for missing values
+   - Kavita: BK015 in Typesetting, and the ₹850 below-minimum note
+   - Ananya: BK005 "No payout yet", ₹2,546 pending, next payout date shown
+   - An admin calling `GET /api/me/books` → 403
+4. Commit: `feat(author): My Books page with royalty summary`
 
 **Dependencies:** Task 3
-**Files likely touched:** `src/app/api/me/books/route.ts`, `src/server/{services/bookService,repositories/bookRepo}.ts`, `src/app/author/books/page.tsx`, `src/lib/format.ts`, `src/components/BookCard.tsx`
+**Files likely touched:** `src/app/api/me/books/route.ts`, `src/server/{services/bookService,repositories/bookRepo}.ts`, `src/app/author/books/page.tsx`, `src/lib/format.ts`, `src/components/books/*`
 **Estimated scope:** Medium
+
+---
+
+### Task 4a: RBAC smoke script (`npm run smoke:rbac`)
+
+**Description:** `scripts/smokeRbac.ts` logs in over HTTP the way a browser does: `GET /api/auth/csrf` → `POST /api/auth/callback/credentials` (form-encoded, `redirect: "manual"`), keeping the session cookie. It then runs a **table of cases** (persona × method × path → expected status, plus an optional body assertion) against `BASE_URL` (default `http://localhost:3000`), prints a ✔/✘ line per case and exits non-zero on any failure. v1 covers the routes that exist today. Tasks 5–8 each add rows for their new routes.
+
+**Acceptance criteria:**
+- [ ] Anonymous → `/api/me`, `/api/me/books` → 401 JSON
+- [ ] Priya (AUTH001) sees exactly BK001 + BK002. Sneha (AUTH007) sees exactly BK011–BK013. Admin → `/api/me/books` → 403
+- [ ] A wrong password yields no session cookie, so the next call is 401. The script fails loudly (non-zero exit) if the app isn't reachable
+
+**Verification:**
+- [ ] `npm run dev` + `npm run smoke:rbac` → all ✔, exit 0
+- [ ] Break a case on purpose (e.g. expect 200 for admin) → ✘ and exit 1, then revert
+- [ ] `npm run lint` and `npm run typecheck` clean
+
+**Dependencies:** Tasks 2 (seeded users), 4 (`/api/me/books`)
+**Files likely touched:** `scripts/smokeRbac.ts`, `package.json`
+**Estimated scope:** Small
+
+---
+
+### Task 4b: First deploy to Vercel
+
+**Description:** Get the app live early so environment/cookie/pooler surprises surface now, not on day 4. Human steps first:
+1. Create a GitHub repo and push `main` (there's no remote yet)
+2. Import the repo in Vercel and set the env vars: `DATABASE_URL` (pooler, port 6543), `AUTH_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ADMIN_REALTIME_KEY`, `GEMINI_MODEL`, `AI_FORCE_FAIL`
+
+`DIRECT_URL` isn't needed on Vercel, because migrations run from your machine. Never paste secrets into chat.
+
+Agent steps: document `AUTH_TRUST_HOST` (local `npm start` only) in `.env.example`. Then confirm that the build only runs `prisma generate`, not migrations.
+
+**Acceptance criteria:**
+- [ ] The live `GET /api/health` → 200 with `database: "up"`
+- [ ] Both roles log in on the live URL and land on their portal. A refresh keeps the session
+- [ ] `BASE_URL=<live url> npm run smoke:rbac` passes
+
+**Verification:**
+- [ ] Vercel build log is green, with no secret values in it
+- [ ] Manual check: open the live URL in a private window and walk through both logins
+
+**Dependencies:** Tasks 2, 3, 4, 4a
+**Files likely touched:** `.env.example`, `README.md` (live URL placeholder)
+**Estimated scope:** Small (mostly human setup)
+
+---
+
+### ✅ Checkpoint 1: Foundation + My Books + early deploy
+- [x] `npm test`, `npm run lint` and `npm run build` are clean
+- [ ] Deployed to Vercel with env vars set (`AUTH_SECRET`, pooler `DATABASE_URL`). Migrations + seed applied to Supabase
+- [ ] Both roles can log in **at the live URL**, and `smoke:rbac` passes against it
+- [ ] Review with human before proceeding
 
 ---
 
 ### Task 5: Submit a support ticket (no AI yet)
 
 **Description:** `POST /api/tickets` (AUTHOR). Shared zod schema: `{ bookId: string | null, subject (5–150), description (20–5000), attachmentName?: string }`. The service checks the book belongs to the author and creates the ticket as OPEN with category/priority null. It also exposes an `onTicketCreated(ticket)` hook point (used by Tasks 9 and 11). Form: book dropdown (own books + "General / Account Level"), subject, description with a counter, attachment picker (UI only, filename kept), inline errors, redirect to the ticket on success.
+
+**Builds on what exists:**
+- Server: `bookRepo.findOwned(authorId, bookId)` (the ownership check), `parseBody`, `withAuth` + `requireAuthorId`
+- Client: `api()` + `ApiError.fieldErrors()` (inline errors), `Field`/`Input`/`Textarea`/`Select`, and the `myBooksQuery` key for the dropdown
+- Conventions: DTO types go in `src/shared/dto.ts`. Mappers sit next to their service, as `toBookDto` does
+- Pre-select the book from `?book=BK…`. `BookDetails`' "Ask about this book" link already sends it
+- The "My queries" nav link 404s until Task 6b. The success redirect 404s until 6a
 
 **Acceptance criteria:**
 - [ ] A valid submission → 201. Invalid input → 400 with per-field messages shown inline (the same schema runs on client and server)
@@ -119,6 +232,7 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 **Verification:**
 - [ ] Tests pass: ticketService.create (ok / foreign book) with a mocked repo. Schema tests
 - [ ] Build succeeds
+- [ ] `smoke:rbac` gets new rows: an author posting another author's `bookId` → 404, anonymous `POST /api/tickets` → 401
 - [ ] Manual check: submit tickets both with a book and as General
 
 **Dependencies:** Task 4
@@ -127,23 +241,45 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 
 ---
 
-### Task 6: My Tickets list + ticket detail thread
+### Task 6a: Ticket detail thread + author follow-up
 
-**Description:** `GET /api/tickets` (own, newest first). `GET /api/tickets/:id` (own only) returns the original query + public messages through an **author DTO, with no notes or AI fields**. `POST /api/tickets/:id/messages` is a follow-up and reopens a RESOLVED ticket. CLOSED → 409. UI: a list with status badges (Open / In Progress / Resolved / Closed), an empty state with a "Raise your first query" CTA, and a chat-style detail view.
+**Description:** `GET /api/tickets/:id` (own only) returns the original query + public messages through an **author DTO, with no notes or AI fields** (`AuthorTicketDto` in `src/shared/dto.ts`; the mapper sits next to `ticketService`). `POST /api/tickets/:id/messages` adds a follow-up. On a RESOLVED ticket it reopens the ticket to OPEN and clears `resolvedAt`; on a CLOSED ticket it returns 409. UI: a chat-style thread at `/author/tickets/[id]` (the original query first, then messages oldest→newest), a reply box and a `StatusBadge`. Task 5's success redirect lands here.
 
 **Acceptance criteria:**
-- [ ] Another author's ticket → 404. The list shows only own tickets
-- [ ] The author DTO's exact keys are asserted in a test (no `notes`, no AI internals)
-- [ ] Empty state renders. Follow-up on a CLOSED ticket → 409 with a clear message
+- [ ] Another author's ticket (GET or POST message) → 404, never 403, so the record's existence isn't revealed
+- [ ] The author DTO's exact keys are asserted in a test (no `notes`, no `aiConfidence`/`aiReasoning`/`*Source`, no `aiDraft`)
+- [ ] Follow-up on RESOLVED → reopened to OPEN. On CLOSED → 409 with a clear message shown in the UI
 
 **Verification:**
-- [ ] Tests pass: DTO shape, reopen-on-reply, closed 409
+- [ ] Tests pass: DTO key set, reopen-on-reply, closed → 409 (mocked repo)
 - [ ] Build succeeds
-- [ ] Manual check: create 2 tickets, view the list and detail, post a follow-up
+- [ ] `smoke:rbac` gets new rows: author B → A's ticket GET/POST → 404
+- [ ] Manual check: create a ticket → land on its thread → post a follow-up
 
 **Dependencies:** Task 5
-**Files likely touched:** `src/app/api/tickets/[id]/{route,messages/route}.ts`, `src/server/dto/ticketDto.ts`, `src/app/author/tickets/{page,[id]/page}.tsx`, `src/components/StatusBadge.tsx`
+**Files likely touched:** `src/app/api/tickets/[id]/{route,messages/route}.ts`, `src/server/services/ticketService.ts`, `src/shared/dto.ts`, `src/app/author/tickets/[id]/page.tsx`, `src/components/StatusBadge.tsx`
 **Estimated scope:** Medium
+
+---
+
+### Task 6b: My Tickets list
+
+**Description:** `GET /api/tickets` (own only, newest first) is added to the route file from Task 5. The `/author/tickets` page lists subject, book (or "General"), status badge and last-updated, and each row links to its thread (6a). The empty state has a "Raise your first query" CTA → `/author/tickets/new`. This makes the "My queries" nav link work.
+
+**Acceptance criteria:**
+- [ ] The list shows only the signed-in author's tickets, newest first, and uses the same author DTO (no internal fields)
+- [ ] The empty state renders for an author with no tickets
+- [ ] Every status (Open / In Progress / Resolved / Closed) has a distinct, labelled badge (not colour alone)
+
+**Verification:**
+- [ ] Tests pass: list service scoping + ordering (mocked repo)
+- [ ] Build succeeds
+- [ ] `smoke:rbac` gets new rows: A's and B's lists are disjoint
+- [ ] Manual check: an author with 0 tickets sees the empty state. Create 2 → both are listed, newest first, and clicking one opens its thread
+
+**Dependencies:** Task 6a
+**Files likely touched:** `src/app/api/tickets/route.ts`, `src/server/{services/ticketService,repositories/ticketRepo}.ts`, `src/app/author/tickets/page.tsx`
+**Estimated scope:** Small
 
 ---
 
@@ -169,9 +305,10 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 **Verification:**
 - [ ] Tests pass: query schema. `buildTicketWhere/orderBy` unit tests
 - [ ] Build succeeds
+- [ ] `smoke:rbac` gets a new row: author → `GET /api/admin/tickets` → 403
 - [ ] Manual check: tickets from 2 authors, try each filter
 
-**Dependencies:** Task 6
+**Dependencies:** Task 6b
 **Files likely touched:** `src/app/api/admin/tickets/route.ts`, `src/shared/schemas/ticketQuery.ts`, `src/server/repositories/ticketRepo.ts`, `src/app/admin/tickets/page.tsx`, `src/components/PriorityBadge.tsx`
 **Estimated scope:** Medium
 
@@ -195,6 +332,7 @@ UI: two columns (thread + reply box | context + controls), "Assign to me", and a
 **Verification:**
 - [ ] Tests pass: PATCH schema, MANUAL source logic, auto IN_PROGRESS on first reply
 - [ ] Build succeeds
+- [ ] `smoke:rbac` gets new rows: author → admin detail/PATCH/messages/notes → 403. After an admin note, the author's `GET /api/tickets/:id` doesn't contain the note text
 - [ ] Manual check: admin assigns, notes, replies, resolves. The author sees the reply (after a refresh at this stage)
 
 **Dependencies:** Task 7
