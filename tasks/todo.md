@@ -14,8 +14,9 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 | 4a | `smoke:rbac` script (new: Checkpoint 2 needed it, but no task created it) | ✅ Done on `feat/rbac-smoke` (waiting on the PR merge). 8/8 checks pass |
 | 4b | Vercel deploy | ⏸ **Deferred** (your call, 2026-10-24): build everything locally first, deploy once before Task 15. Leave ~½ day for deploy issues |
 | CP1 | Foundation + My Books | ✅ Tests, lint, build and `smoke:rbac` clean locally (the deploy items move to before Task 15) |
-| 5 | Submit ticket | ✅ Done on `feat/submit-ticket`. 62 tests pass, 12/12 smoke pass |
-| 6a, 6b | Ticket detail, ticket list (Task 6 split in two: it was 7+ files) | ⬜ Not started |
+| 5 | Submit ticket | ✅ Done (`cae979b`) |
+| 6a | Ticket detail thread + author follow-up | ✅ Done on `feat/ticket-detail`. 73 tests pass, 18/18 smoke pass |
+| 6b | Ticket list | ⬜ Not started |
 | 7–15 | Admin, realtime, AI, docs | ⬜ Not started (`@google/genai` is installed, but there's no `src/server/ai/` yet) |
 
 Evidence: `npm test` 41/41 pass (6 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` **2 errors** (`src/components/books/RoyaltySummary.tsx:42,54`, unescaped `'`) + 1 warning (`src/lib/apiClient.ts:32`) · `prisma migrate status`: 2 migrations not applied · live: `GET /api/health` → 200, `/api/me` and `/api/me/books` without a session → 401 JSON, `/author/books` → 307 `/login?next=…` · secret scan of git history: 0 hits.
@@ -321,16 +322,18 @@ body  { bookId: string | null, subject: string, description: string, attachmentN
 
 **Description:** `GET /api/tickets/:id` (own only) returns the original query + public messages through an **author DTO, with no notes or AI fields** (`AuthorTicketDto` in `src/shared/dto.ts`; the mapper sits next to `ticketService`). `POST /api/tickets/:id/messages` adds a follow-up. On a RESOLVED ticket it reopens the ticket to OPEN and clears `resolvedAt`; on a CLOSED ticket it returns 409. UI: a chat-style thread at `/author/tickets/[id]` (the original query first, then messages oldest→newest), a reply box and a `StatusBadge`. Task 5's success redirect lands here.
 
+**Status:** ✅ Done on branch `feat/ticket-detail`. Verified: 73 tests pass, lint clean, typecheck clean, 18/18 smoke checks pass.
+
 **Acceptance criteria:**
-- [ ] Another author's ticket (GET or POST message) → 404, never 403, so the record's existence isn't revealed
-- [ ] The author DTO's exact keys are asserted in a test (no `notes`, no `aiConfidence`/`aiReasoning`/`*Source`, no `aiDraft`)
-- [ ] Follow-up on RESOLVED → reopened to OPEN. On CLOSED → 409 with a clear message shown in the UI
+- [x] Another author's ticket (GET or POST message) → 404, never 403, so the record's existence isn't revealed
+- [x] The author DTO's exact keys are asserted in a test (no `notes`, no `aiConfidence`/`aiReasoning`/`*Source`, no `aiDraft`)
+- [x] Follow-up on RESOLVED → reopened to OPEN. On CLOSED → 409 with a clear message shown in the UI
 
 **Verification:**
-- [ ] Tests pass: DTO key set, reopen-on-reply, closed → 409 (mocked repo)
-- [ ] Build succeeds
-- [ ] `smoke:rbac` gets new rows: author B → A's ticket GET/POST → 404
-- [ ] Manual check: create a ticket → land on its thread → post a follow-up
+- [x] Tests pass: DTO key set, reopen-on-reply, closed → 409 (mocked repo)
+- [x] Build succeeds
+- [x] `smoke:rbac` gets new rows: author B → A's ticket GET/POST → 404
+- [x] Manual check: create a ticket → land on its thread → post a follow-up
 
 **Dependencies:** Task 5
 **Files likely touched:** `src/app/api/tickets/[id]/{route,messages/route}.ts`, `src/server/services/ticketService.ts`, `src/shared/dto.ts`, `src/app/author/tickets/[id]/page.tsx`, `src/components/StatusBadge.tsx`
