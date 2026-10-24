@@ -17,11 +17,11 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 | 5 | Submit ticket | ✅ Done (`cae979b`) |
 | 6a | Ticket detail thread + author follow-up | ✅ Done (`9408fd8`) |
 | 6b | Ticket list | ✅ Done on `feat/ticket-list`. 74 tests pass, 22/22 smoke pass |
-| CP2 | Author flow | ✅ Complete locally |
 | 7 | Admin ticket queue with filters and urgency sorting | ✅ Done on `feat/admin-queue`. 95 tests pass, 25/25 smoke pass |
-| 8–15 | Admin detail, realtime, AI, docs | ⬜ Not started (`@google/genai` is installed, but there's no `src/server/ai/` yet) |
+| 8 | Admin ticket detail: status, assign-to-me, internal notes, manual reply | ✅ Done on `feat/admin-ticket-detail`. 113 tests pass, 31/31 smoke pass |
+| 9–15 | Admin realtime, AI, docs | ⬜ Not started (`@google/genai` is installed, but there's no `src/server/ai/` yet) |
 
-Evidence: `npm test` 95/95 pass (12 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 25/25 pass · live: `GET /api/health` → 200, `/api/me`, `/api/me/books`, `/api/tickets` without a session → 401 JSON, `/author/books` → 307 `/login?next=…`, `/api/admin/tickets` author → 403 / admin → 200 · secret scan of git history: 0 hits.
+Evidence: `npm test` 113/113 pass (13 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 31/31 pass · live: `GET /api/health` → 200, `/api/me`, `/api/me/books`, `/api/tickets` without a session → 401 JSON, `/author/books` → 307 `/login?next=…`, `/api/admin/tickets` & `/api/admin/tickets/:id/*` author → 403 / admin → 200/201 · secret scan of git history: 0 hits.
 
 Empty in `.env`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS probe, Realtime), `SUPABASE_SERVICE_ROLE_KEY` (Task 9), `GEMINI_API_KEY` (Task 10+).
 
@@ -409,20 +409,22 @@ body  { bookId: string | null, subject: string, description: string, attachmentN
 
 UI: two columns (thread + reply box | context + controls), "Assign to me", and a notes panel labelled "Only visible to BookLeaf team".
 
+**Status:** ✅ Done on branch `feat/admin-ticket-detail`. Verified: 113 tests pass, lint clean, typecheck clean, 31/31 smoke checks pass.
+
 **Acceptance criteria:**
-- [ ] An admin reply shows up on the author's ticket view. Notes never do
-- [ ] Category/priority overrides persist, shown as "Manual"
-- [ ] Invalid status → 400. Unknown ticket → 404
+- [x] An admin reply shows up on the author's ticket view. Notes never do
+- [x] Category/priority overrides persist, shown as "Manual"
+- [x] Invalid status → 400. Unknown ticket → 404
 
 **Verification:**
-- [ ] Tests pass: PATCH schema, MANUAL source logic, auto IN_PROGRESS on first reply
-- [ ] Build succeeds
-- [ ] `smoke:rbac` gets new rows: author → admin detail/PATCH/messages/notes → 403. After an admin note, the author's `GET /api/tickets/:id` doesn't contain the note text
-- [ ] Manual check: admin assigns, notes, replies, resolves. The author sees the reply (after a refresh at this stage)
+- [x] Tests pass: PATCH schema, MANUAL source logic, auto IN_PROGRESS on first reply
+- [x] Build succeeds
+- [x] `smoke:rbac` gets new rows: author → admin detail/PATCH/messages/notes → 403. After an admin note, the author's `GET /api/tickets/:id` doesn't contain the note text
+- [x] Manual check: admin assigns, notes, replies, resolves. The author sees the reply (after a refresh at this stage)
 
 **Dependencies:** Task 7
-**Files likely touched:** `src/app/api/admin/tickets/[id]/{route,messages/route,notes/route}.ts`, `src/server/services/ticketService.ts`, `src/app/admin/tickets/[id]/page.tsx`, `src/components/{ReplyBox,InternalNotes,AuthorContextPanel}.tsx`
-**Estimated scope:** Medium–Large (split the context panel out if it runs long)
+**Files touched:** `src/app/api/admin/tickets/[id]/{route,messages/route,notes/route}.ts`, `src/server/services/adminTicketService.ts`, `src/server/repositories/ticketRepo.ts`, `src/app/admin/tickets/[id]/{page,AdminTicketDetail,TicketControls,AuthorContextSidebar,InternalNotesPanel,TicketConversation}.tsx`
+**Estimated scope:** Medium–Large
 
 ---
 
