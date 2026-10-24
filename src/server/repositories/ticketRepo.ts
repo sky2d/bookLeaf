@@ -192,7 +192,7 @@ export const ticketRepo = {
 
   async findQueue(options: { where?: Prisma.TicketWhereInput; skip?: number; take?: number } = {}) {
     const { where, skip = 0, take = 20 } = options;
-    const [tickets, total] = await db.$transaction([
+    const [tickets, total] = await Promise.all([
       db.ticket.findMany({
         where,
         skip,
