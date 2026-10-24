@@ -33,6 +33,21 @@ export const ticketRepo = {
     });
   },
 
+  listByAuthor(authorId: string) {
+    return db.ticket.findMany({
+      where: { authorId },
+      orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+      include: {
+        book: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+      },
+    });
+  },
+
   findByIdForAuthor(id: string, authorId: string) {
     return db.ticket.findFirst({
       where: { id, authorId },

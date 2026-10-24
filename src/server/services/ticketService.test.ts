@@ -9,12 +9,14 @@ vi.mock("@/server/repositories/bookRepo", () => ({
 }));
 
 const createTicket = vi.fn();
+const listByAuthor = vi.fn();
 const findByIdForAuthor = vi.fn();
 const addMessage = vi.fn();
 const addMessageAndReopen = vi.fn();
 vi.mock("@/server/repositories/ticketRepo", () => ({
   ticketRepo: {
     create: (data: unknown) => createTicket(data),
+    listByAuthor: (authorId: string) => listByAuthor(authorId),
     findByIdForAuthor: (id: string, authorId: string) => findByIdForAuthor(id, authorId),
     addMessage: (tId: string, sId: string, role: string, body: string) => addMessage(tId, sId, role, body),
     addMessageAndReopen: (tId: string, sId: string, role: string, body: string) =>
@@ -221,6 +223,32 @@ describe("ticketService.create", () => {
 
     expect(findOwned).toHaveBeenCalledWith("AUTH001", "BK999");
     expect(createTicket).not.toHaveBeenCalled();
+  });
+});
+
+describe("ticketService.listForAuthor", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("queries tickets by authorId and maps to summary DTOs", async () => {
+    listByAuthor.mockResolvedValueOnce([
+      {
+        id: "TCK100",
+        subject: "Recent ticket",
+        status: "OPEN",
+        createdAt: new Date("2026-10-24T10:00:00.000Z"),
+        updatedAt: new Date("2026-10-24T11:00:00.000Z"),
+        book: { id: "BK001", title: "Whispers of the Ganges" },
+      },
+    ]);
+
+    const result = await ticketService.listForAuthor("AUTH001");
+    expect(listByAuthor).toHaveBeenCalledWith("AUTH001");
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("TCK100");
+    expect(result[0].updatedAt).toBe("2026-10-24T11:00:00.000Z");
+    expect(result[0].book?.title).toBe("Whispers of the Ganges");
   });
 });
 

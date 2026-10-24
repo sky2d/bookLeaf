@@ -50,6 +50,10 @@ export type CreateTicketResponse = {
   ticket: TicketSummaryDto;
 };
 
+export type MyTicketsResponse = {
+  tickets: TicketSummaryDto[];
+};
+
 export type TicketMessageDto = {
   id: string;
   senderRole: "AUTHOR" | "ADMIN";
