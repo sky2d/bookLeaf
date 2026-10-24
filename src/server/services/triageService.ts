@@ -109,18 +109,27 @@ export async function triageTicket(ticketId: string): Promise<TriageResult> {
 
   const priorityRank = PRIORITY_RANKS[classification.priority];
 
-  await ticketRepo.updateTriage(ticket.id, {
-    category: classification.category,
-    categorySource: classification.source,
-    priority: classification.priority,
-    prioritySource: classification.source,
-    priorityRank,
-    aiConfidence: classification.confidence,
-    aiReasoning: classification.reasoning,
-  });
+  try {
+    await ticketRepo.updateTriage(ticket.id, {
+      category: classification.category,
+      categorySource: classification.source,
+      priority: classification.priority,
+      prioritySource: classification.source,
+      priorityRank,
+      aiConfidence: classification.confidence,
+      aiReasoning: classification.reasoning,
+    });
 
-  // Broadcast realtime invalidation to author and admin channels
-  await notifyTicketUpdated(ticket.id, ticket.authorId, "ticket.updated");
+    // Broadcast realtime invalidation to author and admin channels
+    await notifyTicketUpdated(ticket.id, ticket.authorId, "ticket.updated");
+  } catch (err: unknown) {
+    const isRecordNotFound = typeof err === "object" && err !== null && "code" in err && (err as { code: string }).code === "P2025";
+    if (isRecordNotFound) {
+      console.warn(`[triageService] Ticket ${ticket.id} was deleted before background triage completed`);
+    } else {
+      throw err;
+    }
+  }
 
   return {
     ticketId: ticket.id,
