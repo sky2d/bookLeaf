@@ -20,7 +20,11 @@ function getPool(): Pool {
     connectionString,
     max: 10,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 30000,
+  });
+
+  pool.on("error", (err) => {
+    console.warn("[db pool] idle client warning:", err.message);
   });
 
   if (process.env.NODE_ENV !== "production") {

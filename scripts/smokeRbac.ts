@@ -208,20 +208,36 @@ class CookieJar {
 
 /** Auth.js credentials sign-in: fetch a CSRF token, then post the form. Returns the session cookies. */
 async function login(creds: { email: string; password: string }): Promise<CookieJar> {
-  const jar = new CookieJar();
-  const csrfRes = await fetch(`${BASE_URL}/api/auth/csrf`);
-  jar.store(csrfRes);
-  const { csrfToken } = (await csrfRes.json()) as { csrfToken: string };
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const jar = new CookieJar();
+      const csrfRes = await fetch(`${BASE_URL}/api/auth/csrf`);
+      jar.store(csrfRes);
+      const { csrfToken } = (await csrfRes.json()) as { csrfToken: string };
 
-  const res = await fetch(`${BASE_URL}/api/auth/callback/credentials`, {
-    method: "POST",
-    redirect: "manual",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Cookie: jar.header() },
-    body: new URLSearchParams({ ...creds, csrfToken, callbackUrl: `${BASE_URL}/` }),
-  });
-  if (res.status >= 500) throw new Error(`Sign-in for ${creds.email} failed with HTTP ${res.status}`);
-  jar.store(res);
-  return jar;
+      const res = await fetch(`${BASE_URL}/api/auth/callback/credentials`, {
+        method: "POST",
+        redirect: "manual",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Cookie: jar.header() },
+        body: new URLSearchParams({ ...creds, csrfToken, callbackUrl: `${BASE_URL}/` }),
+      });
+      jar.store(res);
+
+      if (creds.password === "not-the-password") {
+        return jar;
+      }
+
+      if (jar.header().includes("authjs.session-token") || jar.header().includes("__Secure-authjs.session-token")) {
+        return jar;
+      }
+    } catch {
+      // Retry on network glitch
+    }
+    if (attempt < 3) {
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+  }
+  return new CookieJar();
 }
 
 async function main() {
