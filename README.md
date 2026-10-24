@@ -1,6 +1,8 @@
 # BookLeaf — Author Support & Communication Portal
 
-A full-stack, enterprise-grade Author Support and Communication Portal engineered for BookLeaf Publishing. Authors manage their published titles and raise support requests; the operations team uses a triage queue with real-time updates and **Gemini 2.5 Flash**-powered AI assistance with zero-hallucination fact grounding, instant caching, and automated fallback.
+> **Live Web Application**: [https://bookleaf-brown.vercel.app](https://bookleaf-brown.vercel.app)
+
+A full-stack, enterprise-grade Author Support and Communication Portal engineered for BookLeaf Publishing. Authors manage their published titles and raise support requests; the operations team uses a triage queue with real-time updates and **Gemini Flash**-powered AI assistance with zero-hallucination fact grounding, instant caching, and automated fallback.
 
 ---
 
@@ -21,7 +23,7 @@ A full-stack, enterprise-grade Author Support and Communication Portal engineere
 All test accounts are seeded in the database. Passwords are case-sensitive.
 
 ### Operations & Support Team (Admin Portal)
-Access portal at: [`/admin/tickets`](http://localhost:3000/admin/tickets)
+Access portal at: [`https://bookleaf-brown.vercel.app/admin/tickets`](https://bookleaf-brown.vercel.app/admin/tickets)
 
 | Name | Role | Email | Password | Scope |
 | :--- | :--- | :--- | :--- | :--- |
@@ -29,7 +31,7 @@ Access portal at: [`/admin/tickets`](http://localhost:3000/admin/tickets)
 | **Nisha Rao** | Operations | `ops@bookleaf.com` | `Admin@123` | Full queue, triage, notes, AI drafts |
 
 ### Authors (Author Portal)
-Access portal at: [`/author/tickets`](http://localhost:3000/author/tickets)
+Access portal at: [`https://bookleaf-brown.vercel.app/author/tickets`](https://bookleaf-brown.vercel.app/author/tickets)
 
 | Author Name | Author ID | Email | Password | Books Published | Key Test Scenario |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -146,8 +148,8 @@ The portal uses **Google Gemini 2.5 Flash** via `@google/genai` with strict cost
 ## Interactive API Reference
 
 The portal provides an interactive OpenAPI 3.0 Swagger UI:
-- **Web UI**: [`http://localhost:3000/api-docs`](http://localhost:3000/api-docs)
-- **Raw OpenAPI JSON**: [`http://localhost:3000/api/openapi`](http://localhost:3000/api/openapi)
+- **Web UI**: [`https://bookleaf-brown.vercel.app/api-docs`](https://bookleaf-brown.vercel.app/api-docs)
+- **Raw OpenAPI JSON**: [`https://bookleaf-brown.vercel.app/api/openapi`](https://bookleaf-brown.vercel.app/api/openapi)
 
 ### Core Endpoints
 
