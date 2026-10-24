@@ -21,7 +21,8 @@ export function useLiveTickets(): { status: LiveConnectionStatus } {
         return null;
       }
     },
-    staleTime: 60_000,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
     retry: false,
   });
 

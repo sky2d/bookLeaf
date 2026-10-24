@@ -39,6 +39,8 @@ export function AdminTicketDetail({ ticketId }: { ticketId: string }) {
       if (!res.ok) return null;
       return res.json();
     },
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
   });
 
   const currentAdminId = meData?.user?.id;
