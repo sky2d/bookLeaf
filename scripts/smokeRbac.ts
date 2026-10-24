@@ -206,8 +206,12 @@ class CookieJar {
   }
 }
 
-/** Auth.js credentials sign-in: fetch a CSRF token, then post the form. Returns the session cookies. */
+/**
+ * Auth.js credentials sign-in: fetch a CSRF token, then post the form. Returns the session cookies.
+ * Retries network errors and 5xx (e.g. a cold database); whether a session was granted is left to the CASES.
+ */
 async function login(creds: { email: string; password: string }): Promise<CookieJar> {
+  let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
       const jar = new CookieJar();
@@ -221,23 +225,17 @@ async function login(creds: { email: string; password: string }): Promise<Cookie
         headers: { "Content-Type": "application/x-www-form-urlencoded", Cookie: jar.header() },
         body: new URLSearchParams({ ...creds, csrfToken, callbackUrl: `${BASE_URL}/` }),
       });
-      jar.store(res);
-
-      if (creds.password === "not-the-password") {
+      if (res.status < 500) {
+        jar.store(res);
         return jar;
       }
-
-      if (jar.header().includes("authjs.session-token") || jar.header().includes("__Secure-authjs.session-token")) {
-        return jar;
-      }
-    } catch {
-      // Retry on network glitch
+      lastError = `HTTP ${res.status}`;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : err;
     }
-    if (attempt < 3) {
-      await new Promise((r) => setTimeout(r, 1000));
-    }
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 1000));
   }
-  return new CookieJar();
+  throw new Error(`Sign-in for ${creds.email} failed after 3 attempts: ${lastError}`);
 }
 
 async function main() {
