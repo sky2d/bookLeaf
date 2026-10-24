@@ -21,6 +21,11 @@ vi.mock("@/server/repositories/ticketRepo", () => ({
   },
 }));
 
+const findAdmin = vi.fn();
+vi.mock("@/server/repositories/userRepo", () => ({
+  userRepo: { findAdmin: (id: string) => findAdmin(id) },
+}));
+
 const notifyTicketUpdated = vi.fn();
 const notifyAdminOnly = vi.fn();
 vi.mock("@/server/realtime/broadcast", () => ({
@@ -301,6 +306,17 @@ describe("adminTicketService.updateTicket", () => {
     await expect(
       adminTicketService.updateTicket("NONEXISTENT", { status: "RESOLVED" }),
     ).rejects.toThrowError(AppError);
+  });
+
+  it("rejects an assignee who is not an admin (400) without updating", async () => {
+    findByIdForAdmin.mockResolvedValueOnce({ id: "TCK020", authorId: "AUTH001", bookId: null });
+    findAdmin.mockResolvedValueOnce(null);
+
+    await expect(adminTicketService.updateTicket("TCK020", { assigneeId: "USR_AUTHOR" })).rejects.toMatchObject({
+      status: 400,
+      code: "BAD_REQUEST",
+    });
+    expect(updateAdminTicket).not.toHaveBeenCalled();
   });
 });
 

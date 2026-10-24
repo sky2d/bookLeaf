@@ -32,6 +32,8 @@ export function toErrorResponse(err: unknown): Response {
       return errorResponse(404, "NOT_FOUND", "Resource not found.");
     case "P2002":
       return errorResponse(409, "CONFLICT", "A record with these details already exists.");
+    case "P2003":
+      return errorResponse(400, "BAD_REQUEST", "A referenced record does not exist.");
   }
   console.error("[api] unhandled error", err);
   return errorResponse(500, "INTERNAL_ERROR", "Something went wrong on our side. Please try again.");

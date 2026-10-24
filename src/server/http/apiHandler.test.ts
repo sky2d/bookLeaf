@@ -44,6 +44,13 @@ describe("apiHandler", () => {
     expect(dup.status).toBe(409);
   });
 
+  it("maps a Prisma foreign-key failure (P2003) to 400 instead of 500", async () => {
+    const res = await apiHandler(async () => {
+      throw Object.assign(new Error("x"), { code: "P2003" });
+    })();
+    expect(res.status).toBe(400);
+  });
+
   it("hides unexpected errors behind a generic 500", async () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await apiHandler(async () => {
