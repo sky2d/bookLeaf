@@ -170,6 +170,25 @@ const CASES: Case[] = [
     status: 404,
     expect: errorCode("NOT_FOUND"),
   },
+  // Admin Ticket AI Draft (Task 12):
+  {
+    as: "anonymous",
+    path: "/api/admin/tickets/nonexistent-id/draft",
+    status: 401,
+    expect: errorCode("UNAUTHORIZED"),
+  },
+  {
+    as: "priya",
+    path: "/api/admin/tickets/nonexistent-id/draft",
+    status: 403,
+    expect: errorCode("FORBIDDEN"),
+  },
+  {
+    as: "admin",
+    path: "/api/admin/tickets/nonexistent-id/draft",
+    status: 404,
+    expect: errorCode("NOT_FOUND"),
+  },
 ];
 
 /** Minimal cookie jar: keeps name=value pairs from Set-Cookie headers. */
