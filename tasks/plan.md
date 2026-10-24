@@ -14,11 +14,11 @@ Detailed tasks with acceptance criteria are in [todo.md](todo.md).
 
 | Decision | Choice | Rationale |
 |---|---|---|
-| App framework | **Next.js 15 App Router**, one app | One codebase and one deploy. The REST API is **Route Handlers under `src/app/api/**`**, and the UI is React Server/Client Components. |
+| App framework | **Next.js 16 App Router**, one app | One codebase and one deploy. The REST API is **Route Handlers under `src/app/api/**`**, and the UI is React Server/Client Components. |
 | Layering | `app/api/*/route.ts` (thin: parse → call service → respond) → `src/server/services/*` → `src/server/repositories/*` → Prisma. Every server module starts with `import 'server-only'` | Separation of concerns (25% criterion). Business logic never lives in route files. If server code is imported into a client component, **the build fails**, which protects the keys. |
 | Database | **Supabase Postgres** accessed **only through Prisma**. `DATABASE_URL` = Supabase pooler (port 6543, `?pgbouncer=true`) for runtime; `DIRECT_URL` = port 5432 for migrations | Prisma gives a typed schema, versioned migrations and enums. The pooler is required for Vercel serverless (many short-lived connections). |
 | Lock down Supabase's auto REST API | A migration **enables RLS with no policies on every table**. Prisma connects as the `postgres` role, which bypasses RLS | Supabase automatically exposes the `public` schema over its REST API to anyone holding the anon key, and the anon key ends up in the browser for Realtime. Deny-all RLS closes that hole. The README calls this out explicitly. |
-| Auth | **Auth.js v5, Credentials provider** (email + password, `bcryptjs`), **JWT session strategy** in an httpOnly cookie. The token carries `userId`, `role`, `authorId`. Config is split into `auth.config.ts` (edge-safe, used by `middleware.ts`) and `auth.ts` (Prisma + bcrypt) | Free, no external service, users live in our own `User` table. `bcryptjs` is pure JS, so there are no native build issues on Windows or Vercel. |
+| Auth | **Auth.js v5, Credentials provider** (email + password, `bcryptjs`), **JWT session strategy** in an httpOnly cookie. The token carries `userId`, `role`, `authorId`. One config in `src/auth.ts`, used by `src/proxy.ts` (Next 16 renamed `middleware` to `proxy`). Proxy runs on the Node.js runtime, so the edge-safe config split isn't needed | Free, no external service, users live in our own `User` table. `bcryptjs` is pure JS, so there are no native build issues on Windows or Vercel. |
 | RBAC | `withAuth(handler, { roles })` wraps every protected route handler: 401 with no session, 403 for the wrong role. **Repositories scope every author query by `authorId` from the session**, never from the request body/URL | One choke point for authn. Ownership is enforced structurally. A cross-author id returns 404, which doesn't reveal the record exists. |
 | Validation and errors | zod schemas in `src/shared/schemas`, shared by forms and route handlers. `apiHandler` maps `AppError` / `ZodError` / Prisma known errors (P2025 → 404, P2002 → 409) to `{ error: { code, message, details } }` | Meaningful, consistent errors instead of generic 500s. |
 | Real-time | **Supabase Realtime Broadcast** used only as an "invalidate" signal. After a mutation, the server sends `{ type, ticketId }` (no ticket content) to the affected channels, and the client refetches through the protected REST API (TanStack Query invalidation). Channels: each user's **unguessable `realtimeKey` (uuid)**, plus an admin channel key handed only to admin sessions. Fallback: 30s polling + refetch on window focus | Instant updates without needing Supabase Auth. No data travels over Realtime, so all data access still goes through authn/RBAC. Vercel functions are stateless, so an in-process SSE bus isn't an option. |
@@ -56,7 +56,7 @@ Detailed tasks with acceptance criteria are in [todo.md](todo.md).
 ```
 prisma/              schema.prisma, migrations/, seed.ts, data/bookleaf_sample_data.json
 src/
-  auth.ts, auth.config.ts, middleware.ts
+  auth.ts, proxy.ts
   app/
     login/page.tsx
     author/          books/, tickets/, tickets/new/, tickets/[id]/
@@ -87,7 +87,7 @@ Next.js scaffold + http layer (apiHandler, AppError, health)
    │
    ├── Prisma schema + migrations (incl. deny-all RLS) on Supabase + seed
    │      │
-   │      └── Auth.js credentials + middleware + withAuth roles ── Login UI + role routing
+   │      └── Auth.js credentials + proxy + withAuth roles ── Login UI + role routing
    │              │
    │              ├── Author: My Books ── Submit Ticket ── My Tickets (list + detail)
    │              │                            │
@@ -132,19 +132,23 @@ Indexes: `Ticket(status, priority, createdAt)`, `Ticket(authorId, createdAt)`. M
 | GET `/api/health` | public | Liveness + DB reachable + AI configured flag |
 | GET `/api/openapi`, page `/api-docs` | public | API docs |
 
-## Task List (index — details in todo.md)
+## Task List (index — details and live status in todo.md)
 
 ### Phase 1: Foundation
-- [ ] Task 1: Next.js scaffold + API error layer + health endpoint
-- [ ] Task 2: Prisma schema on Supabase + deny-all RLS + seed from the provided JSON
-- [ ] Task 3: Login end-to-end (Auth.js credentials, middleware, withAuth roles, role routing)
-
-### Checkpoint 1: Foundation + early deploy (Vercel + Supabase)
+- [x] Task 1: Next.js scaffold + API error layer + health endpoint
+- [ ] Task 2: Prisma schema on Supabase + deny-all RLS + seed from the provided JSON *(code done; migrations not applied yet)*
+- [ ] Task 3: Login end-to-end (Auth.js credentials, proxy, withAuth roles, role routing) *(code done; live check pending)*
 
 ### Phase 2: Author Portal
-- [ ] Task 4: My Books page (incl. in-production and zero-royalty edge cases)
+- [ ] Task 4: My Books page (incl. in-production and zero-royalty edge cases) *(in progress, uncommitted)*
+- [ ] Task 4a: `smoke:rbac` script: the RBAC matrix over HTTP, extended by Tasks 5–8
+- [ ] Task 4b: First Vercel deploy (GitHub remote + env vars)
+
+### Checkpoint 1: Foundation + My Books + early deploy (Vercel + Supabase)
+
 - [ ] Task 5: Submit a support ticket (no AI yet)
-- [ ] Task 6: My Tickets list + ticket detail thread
+- [ ] Task 6a: Ticket detail thread + author follow-up
+- [ ] Task 6b: My Tickets list
 
 ### Checkpoint 2: Author flow
 
@@ -183,10 +187,17 @@ Indexes: `Ticket(status, priority, createdAt)`, `Ticket(authorId, createdAt)`. M
 | Data leak between authors | High | `withAuth` + repository scoping + `npm run smoke:rbac` (logs in as 2 authors + admin and asserts the 403/404 matrix) at every checkpoint. |
 | Drafts invent policy or numbers | High | Facts computed in code, strict prompt rules, Task 13 eval. |
 | 4-day timebox | High | Phases ordered by spec priority. The optional list gets cut first. |
+| Code built on an unmigrated DB (found 2026-10-24: both migrations pending, so login and My Books were never run against real data) | High | Apply migrations + seed before any more feature work (step 1 of the todo's "Next" list). `db:verify` and `smoke:rbac` at every checkpoint. |
+| Auth.js `UntrustedHost` when testing a production build locally | Low | `AUTH_TRUST_HOST=true` for local `npm start` only. Vercel is trusted automatically. |
+| `pg` pool per serverless instance (default max 10) against the Supabase pooler | Med | Watch the connection count after the first deploy. If it climbs, pass `max: 1` to `PrismaPg` in `src/server/db.ts`. |
+| Nav links already point at unbuilt pages (`/author/tickets`, `/author/tickets/new`), which 404 today | Low | Tasks 5–6b land them in order. Don't demo before Checkpoint 2. |
 
-## Open Questions (still need your input)
+## Open Questions
 
-1. **Demo credentials:** OK to seed every author with the shared password `Author@123` and two admins (`admin@bookleaf.com`, `ops@bookleaf.com` / `Admin@123`)?
-2. **"Today" for payout dates:** use the real current date (planned; overridable via the `APP_TODAY` env var)?
-3. **Accounts:** you'll need to create a Supabase project and a Vercel account, then paste the connection strings and keys into `.env.local` yourself. Never paste secrets into chat.
-4. **Git:** OK to run `git init` in Task 1 and commit after each task?
+Resolved: demo credentials (`Author@123` / `Admin@123`, in `prisma/seedData.ts`), "today" (`APP_TODAY` override in `src/server/clock.ts`), git (initialised, one commit per task), Supabase project (created; `DATABASE_URL`, `DIRECT_URL` and `AUTH_SECRET` are set).
+
+Still open:
+1. **Supabase keys:** paste `NEXT_PUBLIC_SUPABASE_ANON_KEY` (needed for Task 2's lockdown probe) and later `SUPABASE_SERVICE_ROLE_KEY` (Task 9) into `.env` yourself.
+2. **Migrations:** OK for the agent to run `db:deploy` + `db:seed` against the Supabase project? It writes to the remote database.
+3. **Hosting:** create a GitHub repo (it must end up public for submission) + import it in Vercel? Or would you rather use the Vercel CLI without GitHub?
+4. **Task 4 copy:** the spec says "₹0 · All paid up" on one line and "Below ₹1,000 minimum — rolls over to next quarter" per book. The build shows the below-minimum note on the account total, which matches the policy (the minimum applies to the accumulated balance). Keep it and update the acceptance criteria, or match the spec wording exactly?
