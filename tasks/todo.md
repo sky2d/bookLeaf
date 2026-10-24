@@ -11,7 +11,7 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 | 2 | Prisma schema + deny-all RLS + seed | ✅ Done. Applied to Supabase 2026-10-24, `db:verify` all ✔ |
 | 3 | Login end-to-end | ✅ Done. Verified live 2026-10-24 |
 | 4 | My Books page | ✅ Done on `feat/my-books` (waiting on the PR merge). A visual check in the browser is still open |
-| 4a | `smoke:rbac` script (new: Checkpoint 2 needed it, but no task created it) | ⬜ Not started |
+| 4a | `smoke:rbac` script (new: Checkpoint 2 needed it, but no task created it) | ✅ Done on `feat/rbac-smoke` (waiting on the PR merge). 8/8 checks pass |
 | 4b | First Vercel deploy (new: Checkpoint 1 had no task with the steps) | ⬜ Not started. No git remote, no Vercel CLI |
 | CP1 | Foundation + My Books + early deploy (moved after 4b: Task 4 started before CP1) | 🟡 Tests, lint and build clean. Never deployed |
 | 5, 6a, 6b | Submit ticket, ticket detail, ticket list (Task 6 split in two: it was 7+ files) | ⬜ Not started |
@@ -25,7 +25,7 @@ Empty in `.env`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS probe, Realtime), `SUPABAS
 1. ~~**Task 2:** apply migrations + seed~~ ✅
 2. ~~**Task 3:** live login check~~ ✅
 3. ~~**Task 4:** fix lint, add the `bookService` test, commit~~ ✅ (open the page in a browser to check the visuals)
-4. **Task 4a:** `smoke:rbac` v1 (anonymous / 2 authors / admin against the routes that exist today)
+4. ~~**Task 4a:** `smoke:rbac` v1~~ ✅
 5. **Task 4b:** GitHub remote + Vercel deploy, then **Checkpoint 1**
 6. **Task 5 → 6a → 6b**, then **Checkpoint 2**
 
@@ -164,15 +164,17 @@ Empty in `.env`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS probe, Realtime), `SUPABAS
 
 **Description:** `scripts/smokeRbac.ts` logs in over HTTP the way a browser does: `GET /api/auth/csrf` → `POST /api/auth/callback/credentials` (form-encoded, `redirect: "manual"`), keeping the session cookie. It then runs a **table of cases** (persona × method × path → expected status, plus an optional body assertion) against `BASE_URL` (default `http://localhost:3000`), prints a ✔/✘ line per case and exits non-zero on any failure. v1 covers the routes that exist today. Tasks 5–8 each add rows for their new routes.
 
+**Status:** ✅ Done. Verified 2026-10-24: 8/8 checks pass against `npm run dev`. A broken case → ✘ and exit 1. An unreachable app → a clear error and exit 1. Lint, typecheck and the 48 tests pass.
+
 **Acceptance criteria:**
-- [ ] Anonymous → `/api/me`, `/api/me/books` → 401 JSON
-- [ ] Priya (AUTH001) sees exactly BK001 + BK002. Sneha (AUTH007) sees exactly BK011–BK013. Admin → `/api/me/books` → 403
-- [ ] A wrong password yields no session cookie, so the next call is 401. The script fails loudly (non-zero exit) if the app isn't reachable
+- [x] Anonymous → `/api/me`, `/api/me/books` → 401 JSON
+- [x] Priya (AUTH001) sees exactly BK001 + BK002. Sneha (AUTH007) sees exactly BK011–BK013. Admin → `/api/me/books` → 403
+- [x] A wrong password yields no session cookie, so the next call is 401. The script fails loudly (non-zero exit) if the app isn't reachable
 
 **Verification:**
-- [ ] `npm run dev` + `npm run smoke:rbac` → all ✔, exit 0
-- [ ] Break a case on purpose (e.g. expect 200 for admin) → ✘ and exit 1, then revert
-- [ ] `npm run lint` and `npm run typecheck` clean
+- [x] `npm run dev` + `npm run smoke:rbac` → all ✔, exit 0
+- [x] Break a case on purpose (e.g. expect 200 for admin) → ✘ and exit 1, then revert
+- [x] `npm run lint` and `npm run typecheck` clean
 
 **Dependencies:** Tasks 2 (seeded users), 4 (`/api/me/books`)
 **Files likely touched:** `scripts/smokeRbac.ts`, `package.json`
