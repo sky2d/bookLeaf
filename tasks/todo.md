@@ -19,17 +19,18 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 | 6b | Ticket list | ⬜ Not started |
 | 7–15 | Admin, realtime, AI, docs | ⬜ Not started (`@google/genai` is installed, but there's no `src/server/ai/` yet) |
 
-Evidence: `npm test` 41/41 pass (6 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` **2 errors** (`src/components/books/RoyaltySummary.tsx:42,54`, unescaped `'`) + 1 warning (`src/lib/apiClient.ts:32`) · `prisma migrate status`: 2 migrations not applied · live: `GET /api/health` → 200, `/api/me` and `/api/me/books` without a session → 401 JSON, `/author/books` → 307 `/login?next=…` · secret scan of git history: 0 hits.
+Evidence: `npm test` 73/73 pass (9 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 18/18 pass · live: `GET /api/health` → 200, `/api/me`, `/api/me/books`, `/api/tickets` without a session → 401 JSON, `/author/books` → 307 `/login?next=…` · secret scan of git history: 0 hits.
 
 Empty in `.env`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS probe, Realtime), `SUPABASE_SERVICE_ROLE_KEY` (Task 9), `GEMINI_API_KEY` (Task 10+).
 
 **Next, in order** (each step leaves the app working; details under each task's "To finish"):
 1. ~~**Task 2:** apply migrations + seed~~ ✅
 2. ~~**Task 3:** live login check~~ ✅
-3. ~~**Task 4:** fix lint, add the `bookService` test, commit~~ ✅ (open the page in a browser to check the visuals)
+3. ~~**Task 4:** fix lint, add the `bookService` test, commit~~ ✅
 4. ~~**Task 4a:** `smoke:rbac` v1~~ ✅
-5. ~~**Task 4b:** deploy~~ ⏸ deferred to before Task 15
-6. **Task 5 → 6a → 6b**, then **Checkpoint 2** (all local)
+5. ~~**Task 5:** support ticket submission~~ ✅ (`cae979b`)
+6. ~~**Task 6a:** ticket detail thread + follow-up~~ ✅ (`feat/ticket-detail`)
+7. **Task 6b:** My Tickets list, then **Checkpoint 2** (all local)
 
 ---
 
