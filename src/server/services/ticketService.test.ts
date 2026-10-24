@@ -24,6 +24,11 @@ vi.mock("@/server/repositories/ticketRepo", () => ({
   },
 }));
 
+const notifyTicketUpdated = vi.fn();
+vi.mock("@/server/realtime/broadcast", () => ({
+  notifyTicketUpdated: (...args: unknown[]) => notifyTicketUpdated(...args),
+}));
+
 const { ticketService, toAuthorTicketDto, toTicketSummaryDto } = await import("./ticketService");
 
 describe("toTicketSummaryDto", () => {
@@ -167,6 +172,7 @@ describe("ticketService.create", () => {
     });
     expect(result.id).toBe("TCK003");
     expect(result.book).toBeNull();
+    expect(notifyTicketUpdated).toHaveBeenCalledWith("TCK003", "AUTH001", "ticket.created");
   });
 
   it("creates a ticket when the referenced book belongs to the author", async () => {
@@ -313,6 +319,7 @@ describe("ticketService.addAuthorMessage", () => {
     expect(addMessageAndReopen).not.toHaveBeenCalled();
     expect(msg.body).toBe("Additional details provided.");
     expect(msg.senderName).toBe("Priya Sharma");
+    expect(notifyTicketUpdated).toHaveBeenCalledWith("TCK020", "AUTH001", "ticket.message");
   });
 
   it("reopens a RESOLVED ticket to OPEN when author replies", async () => {

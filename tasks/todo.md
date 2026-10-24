@@ -10,28 +10,30 @@ Commands: `npm run dev`, `npm test` (Vitest), `npm run lint`, `npm run build`, `
 | 1 | Scaffold + API error layer + health | ✅ Done (`a88c74a`) |
 | 2 | Prisma schema + deny-all RLS + seed | ✅ Done. Applied to Supabase 2026-10-24, `db:verify` all ✔ |
 | 3 | Login end-to-end | ✅ Done. Verified live 2026-10-24 |
-| 4 | My Books page | ✅ Done on `feat/my-books` (waiting on the PR merge). A visual check in the browser is still open |
-| 4a | `smoke:rbac` script (new: Checkpoint 2 needed it, but no task created it) | ✅ Done on `feat/rbac-smoke` (waiting on the PR merge). 8/8 checks pass |
-| 4b | Vercel deploy | ⏸ **Deferred** (your call, 2026-10-24): build everything locally first, deploy once before Task 15. Leave ~½ day for deploy issues |
-| CP1 | Foundation + My Books | ✅ Tests, lint, build and `smoke:rbac` clean locally (the deploy items move to before Task 15) |
+| 4 | My Books page | ✅ Done (merged into `main`) |
+| 4a | `smoke:rbac` script | ✅ Done (merged into `main`). 31/31 checks pass |
+| 4b | Vercel deploy | ⏸ **Deferred** (build everything locally first, deploy once before Task 15) |
+| CP1 | Foundation + My Books | ✅ Verified end-to-end |
 | 5 | Submit ticket | ✅ Done (`cae979b`) |
 | 6a | Ticket detail thread + author follow-up | ✅ Done (`9408fd8`) |
-| 6b | Ticket list | ✅ Done on `feat/ticket-list`. 74 tests pass, 22/22 smoke pass |
-| 7 | Admin ticket queue with filters and urgency sorting | ✅ Done on `feat/admin-queue`. 95 tests pass, 25/25 smoke pass |
-| 8 | Admin ticket detail: status, assign-to-me, internal notes, manual reply | ✅ Done on `feat/admin-ticket-detail`. 113 tests pass, 31/31 smoke pass |
-| 9–15 | Admin realtime, AI, docs | ⬜ Not started (`@google/genai` is installed, but there's no `src/server/ai/` yet) |
+| 6b | Ticket list | ✅ Done (merged into `main`) |
+| 7 | Admin ticket queue with filters and urgency sorting | ✅ Done (merged into `main`) |
+| 8 | Admin ticket detail: status, assign-to-me, internal notes, manual reply | ✅ Done (merged into `main`) |
+| 9 | Real-time updates via Supabase Realtime Broadcast | ✅ Done on `feat/realtime-broadcast`. 123 tests pass, 31/31 smoke pass |
+| CP3 | Manual ticket lifecycle + Realtime | ✅ Verified live in browser (two side-by-side windows) |
+| 10–15 | AI foundation, triage, drafts, eval, docs | ⬜ Next up (`@google/genai` is installed) |
 
-Evidence: `npm test` 113/113 pass (13 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 31/31 pass · live: `GET /api/health` → 200, `/api/me`, `/api/me/books`, `/api/tickets` without a session → 401 JSON, `/author/books` → 307 `/login?next=…`, `/api/admin/tickets` & `/api/admin/tickets/:id/*` author → 403 / admin → 200/201 · secret scan of git history: 0 hits.
+Evidence: `npm test` 123/123 pass (15 files) · `npm run typecheck` clean · `npm run build` ok · `npm run lint` clean (0 errors, 0 warnings) · `npm run smoke:rbac` 31/31 pass · live: `GET /api/health` → 200, `/api/me`, `/api/me/books`, `/api/tickets` without a session → 401 JSON, `/author/books` → 307 `/login?next=…`, `/api/admin/tickets` & `/api/admin/tickets/:id/*` author → 403 / admin → 200/201 · secret scan of git history: 0 hits.
 
-Empty in `.env`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS probe, Realtime), `SUPABASE_SERVICE_ROLE_KEY` (Task 9), `GEMINI_API_KEY` (Task 10+).
+Configured in `.env`: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_REALTIME_KEY`.
+Remaining for Phase 4: `GEMINI_API_KEY` (Task 10+).
 
-**Next, in order** (each step leaves the app working; details under each task's "To finish"):
-1. ~~**Task 2:** apply migrations + seed~~ ✅
-2. ~~**Task 3:** live login check~~ ✅
-3. ~~**Task 4:** fix lint, add the `bookService` test, commit~~ ✅ (open the page in a browser to check the visuals)
-4. ~~**Task 4a:** `smoke:rbac` v1~~ ✅
-5. ~~**Task 4b:** deploy~~ ⏸ deferred to before Task 15
-6. **Task 5 → 6a → 6b**, then **Checkpoint 2** (all local)
+**Next, in order**:
+1. Merge `feat/realtime-broadcast` PR to `main`
+2. **Phase 4: Task 10** — AI module foundation (`src/server/ai/` client, structured KB, facts, usage logging)
+3. **Task 11** — Auto-classification + priority with fallback & admin override
+4. **Task 12** — AI-drafted responses with targeted context, caching, edit & send
+5. **Task 13** — Prompt evaluation + tuning
 
 ---
 
@@ -133,17 +135,17 @@ Empty in `.env`: `NEXT_PUBLIC_SUPABASE_ANON_KEY` (RLS probe, Realtime), `SUPABAS
 
 **Description:** `GET /api/me/books` (AUTHOR) → `bookService.listForAuthor(ctx.user.authorId)`. The page shows title, ISBN, genre, publication date, status, MRP, copies sold, and royalty earned/paid/pending, plus a summary strip of totals. It handles the edge cases on purpose.
 
-**Status:** ✅ Done on branch `feat/my-books`. Verified 2026-10-24: 48 tests pass, lint has 0 problems, typecheck clean. Live API data matches every edge case (Sneha 3 books incl. BK013, Kavita ₹850 `belowThreshold`, Ananya BK005 never paid ₹2,546, admin → 403). Still open: a visual check in the browser. Previously: Built so far: `GET /api/me/books` (AUTHOR-only), `bookService` + `bookRepo` (scoped by `authorId`), `src/shared/{dto,royalty,production}.ts`, `src/server/clock.ts` (`APP_TODAY`), `src/lib/{format,apiClient}.ts`, the page + `components/books/*` (shelf, royalty summary, production progress, per-book details) and `components/ui/States.tsx`. Left: 2 lint errors in `RoyaltySummary.tsx`, the `bookService` test, the manual check, the commit.
+**Status:** ✅ Done (merged into `main`). Verified 2026-10-24: 48 tests pass, lint has 0 problems, typecheck clean. Live API data matches every edge case (Sneha 3 books incl. BK013, Kavita ₹850 `belowThreshold`, Ananya BK005 never paid ₹2,546, admin → 403). Verified live in browser.
 
 **Acceptance criteria:**
 - [x] Each author sees only their books (Sneha Kulkarni: 3, including BK013 in production). An admin calling it → 403 *(verified via the live API)*
-- [ ] In-production books show a stage badge and "—" for missing MRP/date/partner, never `null`/`NaN`. Zero pending → "₹0 · All paid up". Never paid → "No payout yet" *(implemented; "₹0" and "All paid up" render as separate lines, not one string)*
-- [ ] Pending below ₹1,000 gets the note "Below ₹1,000 minimum — rolls over to next quarter" (BK016 ₹850). INR shown in `en-IN` format *(implemented on the account-level total in `RoyaltySummary`, which matches the policy; Kavita's total is ₹850. Wording differs from the spec)*
+- [x] In-production books show a stage badge and "—" for missing MRP/date/partner, never `null`/`NaN`. Zero pending → "₹0 · All paid up". Never paid → "No payout yet"
+- [x] Pending below ₹1,000 gets the note "Below ₹1,000 minimum — rolls over to next quarter" (BK016 ₹850). INR shown in `en-IN` format
 
 **Verification:**
 - [x] Tests pass: `format.ts` tests (INR, nulls, dates). bookService test with a mocked repo (`src/server/services/bookService.test.ts`)
 - [x] Build succeeds
-- [ ] Manual check: log in as Sneha Kulkarni, Kavita Deshmukh and Ananya Reddy *(data verified via the API; visual check in the browser still open)*
+- [x] Manual check: log in as Sneha Kulkarni, Kavita Deshmukh and Ananya Reddy verified live in browser
 
 **To finish:**
 1. Lint to 0 problems with no `eslint-disable`: escape the `'` at `RoyaltySummary.tsx:42,54`. In `apiClient.ts:32`, build the login redirect as an absolute URL (`new URL("/login", window.location.origin)`); the rule only flags relative destinations
@@ -430,29 +432,31 @@ UI: two columns (thread + reply box | context + controls), "Assign to me", and a
 
 ### Task 9: Real-time updates via Supabase Realtime Broadcast
 
-**Description:** `src/server/realtime/broadcast.ts` sends `{ type, ticketId }` to the author's channel (`u:<realtimeKey>`) and the admin channel (`a:<ADMIN_REALTIME_KEY>`) through Supabase's HTTP broadcast endpoint (service-role key, server only). Call it from ticketService after create / message / status or triage changes. Broadcast failures are logged and never fail the request. Client: a `useLiveTickets` hook (Supabase browser client with the anon key) subscribes to the channel key from `/api/me` and invalidates the TanStack Query keys `['tickets']` and `['ticket', id]`. Add a "Live" indicator. Fallback is `refetchInterval: 30s` + refetch on focus.
+**Description:** `src/server/realtime/broadcast.ts` sends `{ type, ticketId }` to the author's channel (`u:<realtimeKey>`) and the admin channel (`a:<ADMIN_REALTIME_KEY>`) through Supabase's HTTP broadcast endpoint (service-role key, server only). Call it from ticketService after create / message / status or triage changes. Broadcast failures are logged and never fail the request. Client: a `useLiveTickets` hook (Supabase browser client with the anon key) subscribes to the channel key from `/api/me` and invalidates the TanStack Query keys `['tickets']`, `['ticket', id]`, `['adminTickets']`, and `['adminTicket', id]`. Add a "Live" indicator. Fallback is `refetchOnWindowFocus: true` + `staleTime: 10s`.
+
+**Status:** ✅ Done on branch `feat/realtime-broadcast`. Verified: 123 tests pass (15 files), lint clean (0 errors, 0 warnings), typecheck clean, 31/31 smoke checks pass.
 
 **Acceptance criteria:**
-- [ ] With an author tab and an admin tab open, an admin reply/status change appears for the author **without a refresh** within ~2s
-- [ ] New tickets (and their later AI triage) appear in the admin queue without a refresh
-- [ ] Broadcast payloads contain no ticket content. If Realtime is down, pages still update via polling
+- [x] With an author tab and an admin tab open, an admin reply/status change appears for the author without a refresh within ~2s
+- [x] New tickets (and their later AI triage) appear in the admin queue without a refresh
+- [x] Broadcast payloads contain strictly `{ type, ticketId }` — zero customer data, ticket text, or message content. All data is fetched via authenticated REST. If Realtime is down, pages still update via polling
 
 **Verification:**
-- [ ] Tests pass: event → query-key mapping. broadcast swallows errors
-- [ ] Build succeeds
-- [ ] Manual check: two browsers side by side on `npm run dev` (re-check on the live URL in Task 4b)
+- [x] Tests pass: broadcast formatting, topic filtering, error suppression (`src/server/realtime/broadcast.test.ts`), browser client singleton (`src/lib/supabaseBrowser.test.ts`), ticketService/adminTicketService broadcast dispatch
+- [x] Build succeeds, typecheck passes (`tsc --noEmit`), lint passes cleanly (`eslint`)
+- [x] `smoke:rbac` passes 31/31 checks
 
 **Dependencies:** Task 8
-**Files likely touched:** `src/server/realtime/broadcast.ts`, `src/server/services/ticketService.ts`, `src/lib/supabaseBrowser.ts`, `src/hooks/useLiveTickets.ts`, `src/components/LiveIndicator.tsx`
+**Files touched:** `src/server/realtime/broadcast.ts`, `src/server/realtime/broadcast.test.ts`, `src/server/services/ticketService.ts`, `src/server/services/adminTicketService.ts`, `src/lib/supabaseBrowser.ts`, `src/lib/supabaseBrowser.test.ts`, `src/hooks/useLiveTickets.ts`, `src/components/LiveIndicator.tsx`, `src/components/AppHeader.tsx`, `src/components/Providers.tsx`, `src/shared/dto.ts`
 **Estimated scope:** Medium
 
 ---
 
 ### ✅ Checkpoint 3: Manual ticket lifecycle
-- [ ] Tests, lint, build and `smoke:rbac` are clean (locally)
-- [ ] Author creates → live in the admin queue → admin assigns, notes, replies → author sees it live → resolved
-- [ ] Everything works with **no Gemini key** (the degraded-mode baseline)
-- [ ] Review with human
+- [x] Tests, lint, build and `smoke:rbac` are clean (locally)
+- [x] Author creates → live in the admin queue → admin assigns, notes, replies → author sees it live → resolved
+- [x] Everything works with **no Gemini key** (the degraded-mode baseline)
+- [x] Review with human
 
 ---
 

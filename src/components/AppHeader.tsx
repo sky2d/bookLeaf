@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { LiveIndicator } from "./LiveIndicator";
 import { Wordmark } from "./Wordmark";
 
 export type NavItem = { href: string; label: string };
@@ -34,6 +35,7 @@ export function AppHeader({ portal, nav, userName }: { portal: string; nav: NavI
           })}
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">
+          <LiveIndicator />
           <span className="hidden text-ink-soft sm:inline">{userName}</span>
           <button
             type="button"

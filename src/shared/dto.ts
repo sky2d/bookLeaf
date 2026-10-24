@@ -203,3 +203,16 @@ export type AdminTicketDetailResponse = {
 export type CreateInternalNoteResponse = {
   note: InternalNoteDto;
 };
+
+export type MeResponse = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    role: "AUTHOR" | "ADMIN";
+    authorId: string | null;
+  };
+  realtime: {
+    channels: string[];
+  };
+};
