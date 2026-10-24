@@ -1,3 +1,5 @@
+import type { TicketStatus } from "@/generated/prisma/enums";
+
 // Response shapes returned by the REST API. Shared by route handlers and the client.
 // Dates are ISO strings (calendar dates as YYYY-MM-DD).
 
@@ -34,3 +36,16 @@ export type RoyaltySummaryDto = {
 };
 
 export type MyBooksResponse = { books: BookDto[]; summary: RoyaltySummaryDto };
+
+export type TicketSummaryDto = {
+  id: string;
+  subject: string;
+  status: TicketStatus;
+  book: { id: string; title: string } | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateTicketResponse = {
+  ticket: TicketSummaryDto;
+};

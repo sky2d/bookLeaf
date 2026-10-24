@@ -53,6 +53,36 @@ const CASES: Case[] = [
   // Admins can't use author-only routes.
   { as: "admin", path: "/api/me", status: 200 },
   { as: "admin", path: "/api/me/books", status: 403, expect: errorCode("FORBIDDEN") },
+  // Ticket creation:
+  {
+    as: "anonymous",
+    method: "POST",
+    path: "/api/tickets",
+    body: { subject: "Anonymous submission test", description: "A detailed description of the issue." },
+    status: 401,
+    expect: errorCode("UNAUTHORIZED"),
+  },
+  {
+    as: "admin",
+    method: "POST",
+    path: "/api/tickets",
+    body: { subject: "Admin submission attempt", description: "A detailed description of the issue." },
+    status: 403,
+    expect: errorCode("FORBIDDEN"),
+  },
+  {
+    as: "priya",
+    method: "POST",
+    path: "/api/tickets",
+    body: {
+      bookId: "BK011",
+      subject: "Query on foreign book",
+      description: "A detailed description about another author's book.",
+    },
+    status: 404,
+    expect: errorCode("NOT_FOUND"),
+  },
+  { as: "priya", method: "POST", path: "/api/tickets", body: {}, status: 400, expect: errorCode("VALIDATION_ERROR") },
 ];
 
 /** Minimal cookie jar: keeps name=value pairs from Set-Cookie headers. */
